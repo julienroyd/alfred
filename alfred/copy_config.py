@@ -1,6 +1,3 @@
-import argparse
-
-from alfred.utils.misc import create_logger
 from alfred.utils.config import *
 from alfred.utils.directory_tree import *
 
@@ -26,11 +23,12 @@ def get_args():
                         type=my_type_func, dest='additional_params',
                         help='To add two params p1 and p2 with values v1 and v2 of type t1 and t2 do : --additional_param p1=v1,t1 '
                              '--additional_param p2=v2,t2')
+    parser.add_argument("--root_dir", default=None, type=str)
     return parser.parse_args()
 
 
-def copy_configs(storage_name, new_task, new_desc, additional_params):
-    storage_to_copy = DirectoryTree.root / storage_name
+def copy_configs(storage_name, new_task, new_desc, additional_params, root_dir):
+    storage_to_copy = get_root(root_dir) / storage_name
     seeds_to_copy = get_all_seeds(storage_to_copy)
     config_list = []
     config_unique_list = []
@@ -49,42 +47,42 @@ def copy_configs(storage_name, new_task, new_desc, additional_params):
 
     # overwrites it
 
-    tmp_dir_manager = DirectoryTree(alg_name="nope", task_name="nap", desc="nip", seed=1)
+    tmp_dir_manager = DirectoryTree(alg_name="nope", task_name="nap", desc="nip", seed=1, root=root_dir)
     storage_name_id, git_hashes, _, _, _ = \
         DirectoryTree.extract_info_from_storage_name(str(tmp_dir_manager.storage_dir.name))
 
     desc = old_desc if new_desc is None else new_desc
-    task_name = new_task
 
     # creates the new folders with loaded config from which we overwrite the env name
     dir = None
     for config, config_unique in zip(config_list, config_unique_list):
 
-        conf = load_config_from_json(str(config))
-        conf.task_name = new_task
-        conf.desc = desc
+        config = load_config_from_json(str(config))
+        config.task_name = new_task
+        config.desc = desc
         expe_name = config.parents[1].name
         experiment_num = int(''.join([s for s in expe_name if s.isdigit()]))
 
-        conf_unique = load_config_from_json(str(config_unique))
-        conf_unique.task_name = new_task
+        config_unique = load_config_from_json(str(config_unique))
+        config_unique.task_name = new_task
 
         if additional_params is not None:
 
             for (key, value) in additional_params:
-                conf.__dict__[key] = value
+                config.__dict__[key] = value
 
-        dir = DirectoryTree(id=storage_name_id,
-                            alg_name=conf.alg_name,
-                            task_name=conf.task_name,
-                            desc=conf.desc,
-                            seed=conf.seed,
-                            experiment_num=experiment_num,
-                            git_hashes=git_hashes)
+        dir = DirectoryTree.init_from_training_param(id=storage_name_id,
+                                                     alg_name=config.alg_name,
+                                                     task_name=config.task_name,
+                                                     desc=config.desc,
+                                                     seed=config.seed,
+                                                     experiment_num=experiment_num,
+                                                     git_hashes=git_hashes,
+                                                     root=root_dir)
         dir.create_directories()
         print(f"Creating {str(dir.seed_dir)}\n")
-        save_config_to_json(conf, filename=str(dir.seed_dir / "config.json"))
-        save_config_to_json(conf_unique, filename=str(dir.seed_dir / "config_unique.json"))
+        save_config_to_json(config, filename=str(dir.seed_dir / "config.json"))
+        save_config_to_json(config_unique, filename=str(dir.seed_dir / "config_unique.json"))
         open(str(dir.seed_dir / 'UNHATCHED'), 'w+').close()
 
     open(str(dir.seed_dir.parents[1] / f'config_copied_from_{str(storage_to_copy.name)}'), 'w+').close()
@@ -93,4 +91,4 @@ def copy_configs(storage_name, new_task, new_desc, additional_params):
 if __name__ == "__main__":
     args = get_args()
     print(args.__dict__)
-    copy_configs(args.storage_name, args.new_env, args.new_desc, args.additional_params)
+    copy_configs(args.storage_name, args.new_env, args.new_desc, args.additional_params, args.root_dir)
