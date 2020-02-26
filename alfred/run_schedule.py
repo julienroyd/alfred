@@ -40,7 +40,7 @@ def get_run_schedule_args():
     parser.add_argument('--n_experiments_per_proc', type=int, default=np.inf)
     parser.add_argument('--use_pbar', type=parse_bool, default=False)
     parser.add_argument('--check_hash', type=parse_bool, default=True)
-    parser.add_argument('--run_over_envs', type=parse_bool, default=False,
+    parser.add_argument('--run_over_tasks', type=parse_bool, default=False,
                         help="If true, subprocesses will look for unhatched seeds in all storage_dir"
                              "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
     parser.add_argument('--run_clean_interrupted', type=parse_bool, default=False,
@@ -188,7 +188,7 @@ def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, l
     return call_i
 
 
-def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_pbar, check_hash, run_over_envs,
+def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_pbar, check_hash, run_over_tasks,
                         run_clean_interrupted):
     # Creates logger
 
@@ -205,7 +205,7 @@ def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_p
                        f"\nn_experiments_per_proc={n_experiments_per_proc}"
                        f"\nuse_pbar={use_pbar}"
                        f"\ncheck_hash={check_hash}"
-                       f"\nrun_over_envs={run_over_envs}"
+                       f"\nrun_over_tasks={run_over_tasks}"
                        f"\n\nDirectoryManager.root={DirectoryTree.root}"
                        f"\n")
 
@@ -229,7 +229,7 @@ def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_p
 
     storage_dir = DirectoryTree.root / storage_name
 
-    if run_over_envs:
+    if run_over_tasks:
         storage_dirs = get_storage_dirs_across_envs(storage_dir)
     else:
         storage_dirs = [storage_dir]
@@ -244,7 +244,7 @@ def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_p
         for storage_dir in storage_dirs:
             clean_interrupted(storage_name=storage_dir.name,
                               clean_crashes=False,
-                              clean_over_envs=False,
+                              clean_over_tasks=False,
                               asks_for_validation=False,
                               logger=master_logger)
 

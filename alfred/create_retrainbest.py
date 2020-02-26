@@ -3,7 +3,7 @@ import traceback
 import argparse
 
 from alfred.utils.misc import create_logger
-from alfred.utils.directory_tree import DirectoryTree, get_storage_dirs_across_envs
+from alfred.utils.directory_tree import DirectoryTree, get_storage_dirs_across_envs, get_root
 from alfred.utils.config import parse_bool, load_dict_from_json
 from alfred.prepare_schedule import create_experiment_dir
 
@@ -12,22 +12,23 @@ def get_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--storage_name', type=str, required=True)
-    parser.add_argument('--run_over_envs', type=parse_bool, default=False,
+    parser.add_argument('--run_over_tasks', type=parse_bool, default=False,
                         help="If true, subprocesses will look for unhatched seeds in all storage_dir"
                              "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
     parser.add_argument('--n_retrain_seeds', type=int, default=10)
+    parser.add_argument('--root_dir', type=str, default=None)
 
     return parser.parse_args()
 
 
-def create_retrain_best(storage_name, run_over_envs, n_retrain_seeds):
+def create_retrain_best(storage_name, run_over_tasks, n_retrain_seeds, root_dir):
     logger = create_logger(name="CREATE_RETRAIN", loglevel=logging.INFO)
     logger.info("\nCREATING retrainBest directories")
 
-    storage_dir = DirectoryTree.root / storage_name
+    storage_dir = get_root(root_dir) / storage_name
 
-    if run_over_envs:
-        storage_dirs = get_storage_dirs_across_envs(storage_dir)
+    if run_over_tasks:
+        storage_dirs = get_storage_dirs_across_envs(storage_dir, root_dir)
     else:
         storage_dirs = [storage_dir]
 
@@ -41,7 +42,7 @@ def create_retrain_best(storage_name, run_over_envs, n_retrain_seeds):
             # Checks if a retrainBest directory already exists for this search
 
             search_storage_id = storage_dir.name.split('_')[0]
-            corresponding_retrain_directories = [path for path in DirectoryTree.root.iterdir()
+            corresponding_retrain_directories = [path for path in get_root(root_dir).iterdir()
                                                  if f"retrainBest{search_storage_id}" in path.name.split('_')]
 
             if len(corresponding_retrain_directories) > 0:
@@ -66,7 +67,7 @@ def create_retrain_best(storage_name, run_over_envs, n_retrain_seeds):
 
                 # Retrain experiments run for twice as long
 
-                config_dict['n_episodes'] *= 2
+                config_dict['max_episodes'] *= 2
 
                 # Gets new storage_name_id
 
@@ -87,6 +88,8 @@ def create_retrain_best(storage_name, run_over_envs, n_retrain_seeds):
                                                     task_name=config_dict['task_name'],
                                                     param_dict=config_dict,
                                                     varied_params=[],
+                                                    root_dir=root_dir,
+                                                    check_param_in_main=False,
                                                     SEEDS=[i * 10 for i in range(n_retrain_seeds)])
 
                 retrainBest_storage_dirs.append(dir_manager.storage_dir)

@@ -12,19 +12,19 @@ def get_clean_interrupted_args():
     parser.add_argument('--storage_name', type=str, required=True)
     parser.add_argument('--clean_crashes', type=parse_bool, default=False)
     parser.add_argument('--ask_for_validation', type=parse_bool, default=True)
-    parser.add_argument('--clean_over_envs', type=parse_bool, default=False,
+    parser.add_argument('--clean_over_tasks', type=parse_bool, default=False,
                         help="If true, clean_interrupted will look for interrupted seeds in all storage_dir"
                              "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
     parser.add_argument('--root_dir', default=None, type=str)
     return parser.parse_args()
 
 
-def clean_interrupted(storage_name, clean_crashes, clean_over_envs, ask_for_validation, logger, root_dir):
+def clean_interrupted(storage_name, clean_crashes, clean_over_tasks, ask_for_validation, logger, root_dir):
     # Select storage_dirs to run over
 
     storage_dir = get_root(root_dir) / storage_name
 
-    if clean_over_envs:
+    if clean_over_tasks:
         storage_dirs = get_storage_dirs_across_envs(storage_dir, root_dir=root_dir)
     else:
         storage_dirs = [storage_dir]
