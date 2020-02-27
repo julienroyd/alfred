@@ -1,9 +1,10 @@
 # USAGE
 # TODO: write description of how to use it (maybe in the help from argparse?)
 
-# ASSUMPTION: this module (alfred) assumes that the directory from which it is called contains:
+# ASSUMPTIONS: this module (alfred) assumes that the directory from which it is called contains:
 # 1. a file named 'main.py'
 # 2. a function 'main.get_main_args()' that defines the hyperparameters for this project
+# 3. a folder named 'schedules' containing two files: grid_schedule.py and random_schedule.py
 try:
     from main import main, get_main_args
 except ImportError as e:
@@ -26,8 +27,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from alfred.utils.directory_tree import DirectoryTree
-from alfred.utils.config import save_dict_to_json, load_dict_from_json, save_config_to_json, config_to_str
+from alfred.utils.directory_tree import DirectoryTree, get_root
+from alfred.utils.config import save_dict_to_json, load_dict_from_json, save_config_to_json, config_to_str, parse_bool
 from alfred.utils.plots import plot_sampled_hyperparams
 from alfred.utils.misc import create_logger
 
@@ -36,13 +37,24 @@ def get_prepare_schedule_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--desc', type=str, default=None)
     parser.add_argument('--add_to_folder', type=str, default=None)
-    parser.add_argument('--search_type', type=str, default='grid', choices=['grid', 'random'])
-    parser.add_argument('--n_experiments', type=int, default=15)
+    parser.add_argument('--search_type', type=str, default='random', choices=['grid', 'random'])
+    parser.add_argument('--n_experiments', type=int, default=50)
+    parser.add_argument('--resample', type=parse_bool, default=True,
+                        help="If true we resample a configuration for each task*alg combination")
+    parser.add_argument('--root_dir', default=None, type=str)
     return parser.parse_args()
 
 
 def extract_schedule_grid():
-    from schedules.grid_schedule import VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS
+    try:
+        from schedules.grid_schedule import VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS
+    except ImportError as e:
+        raise ImportError(
+            f"This module (alfred) assumes that the directory from which you called it contains:"
+            f"\n\t1. a folder named 'schedules'"
+            f"\n\t2. a file named 'grid_schedule.py' containing the definition of the grid-search to prepare"
+            f"(see alfred/schedules_examples)"
+        )
 
     # Transforms our dictionary of lists (key: list of values) into a list of lists of tuples (key, single_value)
 
@@ -67,7 +79,15 @@ def extract_schedule_grid():
 
 
 def extract_schedule_random(n_experiments):
-    from schedules.random_schedule import sample_experiment, ALG_NAMES, TASK_NAMES, SEEDS
+    try:
+        from schedules.random_schedule import sample_experiment, ALG_NAMES, TASK_NAMES, SEEDS
+    except ImportError as e:
+        raise ImportError(
+            f"This module (alfred) assumes that the directory from which you called it contains:"
+            f"\n\t1. a folder named 'schedules'"
+            f"\n\t2. a file named 'random_schedule.py' containing the definition of the grid-search to prepare"
+            f"(see alfred/schedules_examples)"
+        )
 
     # Samples all experiments' hyperparameters
 
@@ -97,7 +117,7 @@ def extract_schedule_random(n_experiments):
 
 
 def create_experiment_dir(desc, alg_name, task_name, param_dict, varied_params, storage_name_id, SEEDS,
-                          git_hashes=None):
+                          root_dir, git_hashes=None):
     # Creates dictionary pointer-access to a training config object initialized by default
 
     config = get_main_args(overwritten_cmd_line="")
@@ -113,7 +133,8 @@ def create_experiment_dir(desc, alg_name, task_name, param_dict, varied_params, 
             config_dict[param_name] = param_dict[param_name]
 
     tmp_dir_manager = DirectoryTree(id=storage_name_id, alg_name=alg_name, task_name=task_name, desc=desc, seed=1,
-                                    git_hashes=git_hashes)
+                                    git_hashes=git_hashes, root=root_dir)
+
     experiment_num = int(tmp_dir_manager.experiment_dir.name.strip('experiment'))
 
     # For each seed in these experiments, creates a directory
@@ -132,7 +153,9 @@ def create_experiment_dir(desc, alg_name, task_name, param_dict, varied_params, 
                                     desc=config.desc,
                                     seed=config.seed,
                                     experiment_num=experiment_num,
-                                    git_hashes=git_hashes)
+                                    git_hashes=git_hashes,
+                                    root=root_dir)
+
         dir_manager.create_directories()
 
         # Saves the set of unique variations as json file (to easily identify the uniqueness of this experiment)
@@ -154,10 +177,7 @@ def create_experiment_dir(desc, alg_name, task_name, param_dict, varied_params, 
     return dir_manager
 
 
-def prepare_schedule(desc, add_to_folder, search_type, n_experiments, asks_for_validation, logger):
-
-    logger.debug(f"\n\nYou are running:\t{__file__}\nfrom:\t\t\t{os.getcwd()}\n")
-
+def prepare_schedule(desc, add_to_folder, search_type, n_experiments, asks_for_validation, resample, logger, root_dir):
     # Gets experiments parameters
 
     if search_type == 'grid':
@@ -166,7 +186,21 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, asks_for_v
 
     elif search_type == 'random':
 
-        param_samples, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params = extract_schedule_random(n_experiments)
+        param_samples, AGENT_ALGS, ENV_NAMES, SEEDS, experiments, varied_params = extract_schedule_random(n_experiments)
+        experiments = [experiments]
+        param_samples = [param_samples]
+        n_combinations = len(AGENT_ALGS) * len(ENV_NAMES)
+
+        if resample:
+            assert not add_to_folder
+            for i in range(n_combinations - 1):
+                param_sa, _, _, _, expe, varied_pa = extract_schedule_random(n_experiments)
+                experiments.append(expe)
+                param_samples.append(param_sa)
+
+        else:
+            experiments = experiments * n_combinations
+            param_samples = param_samples * n_combinations
 
     else:
         raise NotImplementedError
@@ -182,7 +216,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, asks_for_v
         mode = "NEW_STORAGE"
 
     elif add_to_folder is not None:
-        assert (DirectoryTree.root / add_to_folder).exists(), f"{add_to_folder} does not exist."
+        assert (get_root(root_dir) / add_to_folder).exists(), f"{add_to_folder} does not exist."
         assert desc is None, "If --add_to_folder is defined, new experiments will be added to the existing folder." \
                              "No --desc should be provided."
 
@@ -193,7 +227,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, asks_for_v
         mode = "EXISTING_STORAGE"
 
     else:
-        raise NotImplemented
+        raise NotImplementedError
 
     # Printing summary of schedule_xyz.py
 
@@ -228,7 +262,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, asks_for_v
                          f"{string}")
 
         else:
-            n_existing_experiments = len([path for path in (DirectoryTree.root / add_to_folder).iterdir()
+            n_existing_experiments = len([path for path in get_root(root_dir) / add_to_folder.iterdir()
                                           if path.name.startswith('experiment')])
 
             logger.debug(f"\n\nAbout to add {len(experiments)} experiment folders in the following directory"
@@ -244,7 +278,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, asks_for_v
 
     # For each storage_dir to be created
 
-    for alg_name, task_name in agent_env_combinations:
+    for i, (alg_name, task_name) in enumerate(agent_env_combinations):
 
         # Creates the experiment directories...
 
@@ -252,22 +286,20 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, asks_for_v
 
             # ... in a new storage_dir
 
-            tmp_dir_manager = DirectoryTree(alg_name=alg_name, task_name=task_name, desc=desc, seed=1)
+            tmp_dir_manager = DirectoryTree(alg_name=alg_name, task_name=task_name, desc=desc, seed=1, root=root_dir)
             storage_name_id = tmp_dir_manager.storage_dir.name.split('_')[0]
 
-            for param_dict in experiments:
-
+            for param_dict in experiments[i]:
                 dir_manager = create_experiment_dir(desc, alg_name, task_name, param_dict,
-                                                    varied_params, storage_name_id, SEEDS)
+                                                    varied_params, storage_name_id, SEEDS, root_dir=root_dir)
 
         else:
 
             # ... in an existing storage_dir
 
-            for param_dict in experiments:
+            for param_dict in experiments[i]:
                 dir_manager = create_experiment_dir(desc, alg_name, task_name, param_dict,
-                                                    varied_params, storage_name_id, SEEDS,
-                                                    git_hashes)
+                                                    varied_params, storage_name_id, SEEDS, git_hashes)
 
         # Saves VARIATIONS in the storage directory
 
@@ -294,16 +326,19 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, asks_for_v
 
         elif search_type == 'random':
 
-            fig, ax = plt.subplots(len(param_samples), 1, figsize=(6, 2 * len(param_samples)))
-            plot_sampled_hyperparams(ax, param_samples)
+            fig, ax = plt.subplots(len(param_samples[i]), 1, figsize=(6, 2 * len(param_samples[i])))
+            if not hasattr(ax, '__iter__'):
+                ax = [ax]
 
-            i = 1
+            plot_sampled_hyperparams(ax, param_samples[i])
+
+            j = 1
             while True:
-                if (dir_manager.storage_dir / f'variations{i}.png').exists():
-                    i+= 1
+                if (dir_manager.storage_dir / f'variations{j}.png').exists():
+                    j += 1
                 else:
                     break
-            fig.savefig(str(dir_manager.storage_dir / f'variations{i}.png'))
+            fig.savefig(str(dir_manager.storage_dir / f'variations{j}.png'))
             plt.close(fig)
 
             open(str(dir_manager.storage_dir / 'RANDOM_SEARCH'), 'w+').close()
@@ -311,7 +346,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, asks_for_v
         # Printing summary
 
         logger.info(f'Created directories '
-              f'{str(dir_manager.storage_dir)}/experiment{first_experiment_created}-{last_experiment_created}')
+                    f'{str(dir_manager.storage_dir)}/experiment{first_experiment_created}-{last_experiment_created}')
 
     logger.info(f"\nEach of these experiments contain directories for the following seeds: {SEEDS}")
 
