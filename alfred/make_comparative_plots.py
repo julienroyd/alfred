@@ -9,10 +9,11 @@ import matplotlib.pyplot as plt
 
 from alfred.utils.misc import create_logger
 from alfred.utils.config import load_dict_from_json
-from alfred.utils.recorder import TrainingRecorder
+from alfred.utils.recorder import Recorder
 from alfred.utils.plots import plot_curves
 from alfred.utils.directory_tree import DirectoryTree
 
+PLOTS_TO_MAKE = [('total_steps', 'eval_return')]
 
 def get_make_plots_args():
     parser = argparse.ArgumentParser()
@@ -28,12 +29,6 @@ def create_comparative_figure(storage_dir, logger):
     :return: None
     """
     assert isinstance(storage_dir, Path)
-    PLOTS_TO_MAKE = [
-        'return',
-        'eval_return',
-        'actor_loss',
-        'critic_loss',
-    ]
 
     # Get all experiment directories and sorts them numerically
     sorted_experiments = DirectoryTree.get_all_experiments(storage_dir)
@@ -105,8 +100,8 @@ def create_comparative_figure(storage_dir, logger):
         else:
             first_seed_idx = 0
 
-        for current_comparative_plot in PLOTS_TO_MAKE:
-            logger.debug(f'\n{current_comparative_plot.upper()}:')
+        for x_metric, y_metric in PLOTS_TO_MAKE:
+            logger.debug(f'\n{y_metric.upper()} as a function of {x_metric.upper()}:')
 
             # Creates the subplots
             fig, ax_array = plt.subplots(i_max, j_max, figsize=(10 * j_max, 6 * i_max))
@@ -171,41 +166,17 @@ def create_comparative_figure(storage_dir, logger):
 
                     # Plots data for one experiment
                     try:
-                        loaded_recorder = TrainingRecorder.init_from_pickle_file(
+                        loaded_recorder = Recorder.init_from_pickle_file(
                             filename=str(seed_dir / 'recorders' / 'train_recorder.pkl'))
 
-                        if current_comparative_plot == 'return':
+                        if x_metric in loaded_recorder.tape.keys() and y_metric in loaded_recorder.tape.keys():
                             plot_curves(current_ax,
-                                        ys=np.vstack(loaded_recorder.tape['total_reward']).T,
-                                        colors=loaded_recorder.tape['agent_colors'],
-                                        labels=[f"agent {i}" for i in range(len(loaded_recorder.tape['agent_colors']))],
-                                        xlabel="Episodes", title="Return")
-
-                        elif current_comparative_plot == 'eval_return':
-                            plot_curves(current_ax,
-                                        xs=[loaded_recorder.tape['eval_episodes'] for _ in loaded_recorder.tape['agent_colors']],
-                                        ys=np.stack(loaded_recorder.tape['eval_total_reward']).mean(axis=1).T,
-                                        stds=np.stack(loaded_recorder.tape['eval_total_reward']).std(axis=1).T,
-                                        colors=loaded_recorder.tape['agent_colors'],
-                                        labels=[f"agent {i}" for i in range(len(loaded_recorder.tape['agent_colors']))],
-                                        xlabel="Episodes", title="Return")
-
-                        elif current_comparative_plot == 'actor_loss':
-                            plot_curves(current_ax,
-                                        ys=np.vstack(loaded_recorder.tape['actor_loss']).T,
-                                        colors=loaded_recorder.tape['agent_colors'],
-                                        labels=[f"agent {i}" for i in range(len(loaded_recorder.tape['agent_colors']))],
-                                        xlabel="Updates", title="Actor Loss")
-
-                        elif current_comparative_plot == 'critic_loss':
-                            plot_curves(current_ax,
-                                        ys=np.vstack(loaded_recorder.tape['critic_loss']).T,
-                                        colors=loaded_recorder.tape['agent_colors'],
-                                        labels=[f"agent {i}" for i in range(len(loaded_recorder.tape['agent_colors']))],
-                                        xlabel="Updates", title="Critic Loss")
+                                        ys=[loaded_recorder.tape['return']],
+                                        xs=[loaded_recorder.tape['total_steps']],
+                                        xlabel="Transitions", title="Return")
 
                         else:
-                            raise Warning(f"Unrecognized current_comparative_plot='{current_comparative_plot}'")
+                            raise Warning(f"One of '{x_metric}' or '{y_metric}' was not recorded in train_recorder.")
 
                     except FileNotFoundError:
                         logger.debug('Training recorder not found')
@@ -213,7 +184,7 @@ def create_comparative_figure(storage_dir, logger):
                                         transform=current_ax.transAxes, fontsize=24, fontweight='bold', color='red')
                         continue
 
-            fig.savefig(str(storage_dir / f'{group_key}_comparative_{current_comparative_plot}.png'))
+            fig.savefig(str(storage_dir / f'{group_key}_comparative_{y_metric}_over_{x_metric}.png'))
             plt.close(fig)
 
 
