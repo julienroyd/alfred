@@ -177,7 +177,7 @@ def create_experiment_dir(desc, alg_name, task_name, param_dict, varied_params, 
     return dir_manager
 
 
-def prepare_schedule(desc, add_to_folder, search_type, n_experiments, asks_for_validation, resample, logger, root_dir):
+def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_validation, resample, logger, root_dir):
     # Gets experiments parameters
 
     if search_type == 'grid':
@@ -249,7 +249,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, asks_for_v
 
     # Asking for user validation
 
-    if asks_for_validation:
+    if ask_for_validation:
 
         if mode == "NEW_STORAGE":
             git_hashes = DirectoryTree.get_git_hashes()
@@ -354,4 +354,4 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, asks_for_v
 if __name__ == '__main__':
     logger = create_logger(name="PREPARE_SCHEDULE - MAIN", loglevel=logging.DEBUG)
     kwargs = vars(get_prepare_schedule_args())
-    prepare_schedule(**kwargs, logger=logger, asks_for_validation=True)
+    prepare_schedule(**kwargs, logger=logger, ask_for_validation=True)

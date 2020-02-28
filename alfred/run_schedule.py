@@ -45,11 +45,12 @@ def get_run_schedule_args():
                              "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
     parser.add_argument('--run_clean_interrupted', type=parse_bool, default=False,
                         help="Will clean mysteriously stopped seeds to be re-runned, but not crashed experiments")
+    parser.add_argument('--root_dir', default=None, type=str)
 
     return parser.parse_args()
 
 
-def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, logger, process_i=0):
+def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, logger, root_dir, process_i=0):
     call_i = 0
 
     try:
@@ -94,7 +95,7 @@ def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, l
 
                 try:
                     config = load_config_from_json(str(seed_dir / 'config.json'))
-                    dir_manager = DirectoryTree.init_from_seed_path(seed_dir)
+                    dir_manager = DirectoryTree.init_from_seed_path(seed_dir, root=root_dir)
 
                     experiment_logger = create_logger(
                         name=f'PROCESS{process_i}:'
@@ -116,7 +117,7 @@ def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, l
                         f"{dir_manager.storage_dir.name}/{dir_manager.experiment_dir.name}/{dir_manager.seed_dir.name} - "
                         f"Launching...")
 
-                    main(config, dir_manager, experiment_logger, pbar)
+                    main(config=config, dir_manager=dir_manager, logger=experiment_logger, pbar=pbar)
 
                     open(str(seed_dir / 'COMPLETED'), 'w+').close()
                     call_i += 1
@@ -163,12 +164,16 @@ def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, l
 
                         try:
                             summarize_search(storage_name=storage_dir.name,
-                                             agent_i=0,
-                                             n_benchmark_episodes=100,
+                                             x_metric="episode",
+                                             y_metric="eval_return",
+                                             n_eval_runs=None,
+                                             performance_metric="avg_eval_return",
+                                             performance_aggregation="last",
                                              re_run_if_exists=False,
                                              make_performance_chart=True,
                                              make_learning_plots=True,
-                                             logger=logger)
+                                             logger=logger,
+                                             root_dir=root_dir)
 
                             os.remove(str(storage_dir / "summary" / 'SUMMARY_ONGOING'))
                             open(str(storage_dir / "summary" / 'SUMMARY_COMPLETED'), 'w+').close()
@@ -189,10 +194,11 @@ def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, l
 
 
 def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_pbar, check_hash, run_over_tasks,
-                        run_clean_interrupted):
+                        run_clean_interrupted, root_dir):
+
     # Creates logger
 
-    storage_dir = DirectoryTree.root / storage_name
+    storage_dir = get_root(root_dir) / storage_name
     master_logger = create_logger(name=f'RUN_SCHEDULE - MASTER', loglevel=logging.INFO,
                                   logfile=storage_dir / 'run_schedule_logger.out', streamHandle=True)
 
@@ -206,7 +212,7 @@ def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_p
                        f"\nuse_pbar={use_pbar}"
                        f"\ncheck_hash={check_hash}"
                        f"\nrun_over_tasks={run_over_tasks}"
-                       f"\n\nDirectoryManager.root={DirectoryTree.root}"
+                       f"\nroot={get_root(root_dir)}"
                        f"\n")
 
     # Checks if code hash matches the folder to be run_schedule
@@ -227,10 +233,10 @@ def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_p
 
     # Select storage_dirs to run over
 
-    storage_dir = DirectoryTree.root / storage_name
+    storage_dir = get_root(root_dir) / storage_name
 
     if run_over_tasks:
-        storage_dirs = get_storage_dirs_across_envs(storage_dir)
+        storage_dirs = get_storage_dirs_across_envs(storage_dir, root_dir=root_dir)
     else:
         storage_dirs = [storage_dir]
 
@@ -245,12 +251,14 @@ def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_p
             clean_interrupted(storage_name=storage_dir.name,
                               clean_crashes=False,
                               clean_over_tasks=False,
-                              asks_for_validation=False,
-                              logger=master_logger)
+                              ask_for_validation=False,
+                              logger=master_logger,
+                              root_dir=root_dir)
 
     # Launches multiple processes
 
     if n_processes > 1:
+        ## TODO: Logger is not supported with multiprocess (should use queues and all)
         n_calls = None  # for now we only return n_calls != None if running with one process only
 
         processes = []
@@ -263,9 +271,7 @@ def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_p
                                    logfile=storage_dir / 'run_schedule_logger.out', streamHandle=True)
 
             # Adds logfiles to logger if multiple storage_dirs
-
             if len(storage_dirs) > 1:
-
                 for storage_dir in storage_dirs[1:]:
                     file_handler = create_new_filehandler(logger.name, logfile=storage_dir / 'run_schedule_logger.out')
                     logger.addHandler(file_handler)
@@ -277,6 +283,7 @@ def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_p
                                                                  n_experiments_per_proc,
                                                                  use_pbar,
                                                                  logger,
+                                                                 root_dir,
                                                                  i)))
         try:
             # start processes
@@ -316,7 +323,8 @@ def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_p
                                 n_processes,
                                 n_experiments_per_proc,
                                 use_pbar,
-                                master_logger)
+                                master_logger,
+                                root_dir=root_dir)
 
     return n_calls
 
