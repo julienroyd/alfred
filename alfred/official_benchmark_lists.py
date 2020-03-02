@@ -35,7 +35,6 @@ searches_list = [
     "Ju85_bf550ec_aa00755_TeamMADDPG_compromise_random_meanReturn_benchmarkv1",
     "Ju56_1756c4b_03c955b_TeamMADDPG_chase_random_benchmarkv1",
 
-
     # CoachMADDPG_benchmarkv1 -----
     "PB1_2bc3c27_5f7a15b_CoachMADDPG_spread_random_review",
     "PB2_2bc3c27_5f7a15b_CoachMADDPG_bounce_random_review",

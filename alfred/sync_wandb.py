@@ -22,7 +22,6 @@ def get_clean_interrupted_args():
 
 
 def sync_wandb(root_dir, tag, ask_for_validation, env_activation, logger):
-
     # Define sync command line
 
     if not env_activation == "":

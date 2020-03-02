@@ -6,11 +6,11 @@ import seaborn as sns
 
 sns.set()
 
+
 # TODO: merge with 'official_plot_branch' from multi-agent project to use name and color dicts for benchmark.py
 
 def bar_chart(ax, scores, err_up=None, err_down=None, capsize=10., colors=None,
               group_names=None, xlabel="", ylabel="", title="", cmap="viridis"):
-
     # data to plot
     n_groups = len(list(scores.values())[0])
 
@@ -46,7 +46,8 @@ def bar_chart(ax, scores, err_up=None, err_down=None, capsize=10., colors=None,
     ax.legend(loc='upper right')
 
 
-def plot_curves(ax, ys, xs=None, colors=None, labels=None, xlabel="", ylabel="", title="", fill=None, smooth=False, cmap='viridis'):
+def plot_curves(ax, ys, xs=None, colors=None, labels=None, xlabel="", ylabel="", title="", fill=None, smooth=False,
+                cmap='viridis'):
     if xs is None:
         xs = [range(len(y)) for y in ys]
 

@@ -99,9 +99,9 @@ def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, l
 
                     experiment_logger = create_logger(
                         name=f'PROCESS{process_i}:'
-                        f'{dir_tree.storage_dir.name}/'
-                        f'{dir_tree.experiment_dir.name}/'
-                        f'{dir_tree.seed_dir.name}',
+                             f'{dir_tree.storage_dir.name}/'
+                             f'{dir_tree.experiment_dir.name}/'
+                             f'{dir_tree.seed_dir.name}',
                         loglevel=logging.INFO,
                         logfile=dir_tree.seed_dir / 'logger.out',
                         streamHandle=not (use_pbar)
@@ -156,8 +156,8 @@ def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, l
 
                 if all_seeds == completed_seeds and not (storage_dir / "summary" / "SUMMARY_ONGOING").exists():
 
-                    if not (storage_dir / "summary" / "SUMMARY_ONGOING").exists()\
-                    and not (storage_dir / "summary" / "SUMMARY_COMPLETED").exists():
+                    if not (storage_dir / "summary" / "SUMMARY_ONGOING").exists() \
+                            and not (storage_dir / "summary" / "SUMMARY_COMPLETED").exists():
                         os.makedirs(str(storage_dir / "summary"), exist_ok=True)
                         open(str(storage_dir / "summary" / 'SUMMARY_ONGOING'), 'w+').close()
                         logger.info(f"{storage_dir.name}: SUMMARIZING SEARCH")
@@ -195,7 +195,6 @@ def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, l
 
 def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_pbar, check_hash, run_over_tasks,
                         run_clean_interrupted, root_dir):
-
     # Creates logger
 
     storage_dir = get_root(root_dir) / storage_name

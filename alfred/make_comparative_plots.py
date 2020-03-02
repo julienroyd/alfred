@@ -15,6 +15,7 @@ from alfred.utils.directory_tree import DirectoryTree
 
 PLOTS_TO_MAKE = [('total_steps', 'eval_return')]
 
+
 def get_make_plots_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--storage_name', type=str, required=True)

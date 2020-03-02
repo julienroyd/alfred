@@ -1,5 +1,5 @@
 from evaluate import evaluate, get_evaluation_args  # TODO: deal with that
-import official_benchmark_lists # TODO: get rid of that
+import official_benchmark_lists  # TODO: get rid of that
 
 # TODO: eventually, I should:
 # TODO:    1. create a file common.py that has some general functions used by both summaries (intra storage_dir) and benchmarks (across storage_dir's)
@@ -21,6 +21,7 @@ from shutil import copyfile
 from collections import OrderedDict
 from pathlib import Path
 import seaborn as sns
+
 sns.set()
 
 
@@ -48,7 +49,6 @@ def get_benchmark_args():
 
 def _compute_seed_scores(storage_dir, performance_metric, performance_aggregation, group_key, bar_key,
                          re_run_if_exists, save_dir, logger, root_dir, n_eval_runs=None):
-
     if (storage_dir / save_dir / f"{save_dir}_performance_data.pkl").exists() and not re_run_if_exists:
         logger.info(f" SKIPPING {storage_dir} - {save_dir}_performance.pkl already exists")
         return
@@ -291,7 +291,6 @@ def _make_benchmark_performance_figure(storage_dirs, save_dir, logger, normalize
 
 def _gather_experiments_training_curves(storage_dir, graph_key, curve_key, logger, x_metric, y_metric,
                                         x_data=None, y_data=None):
-
     assert graph_key in ['task_name', 'storage_name', 'experiment_num', 'alg_name']
     assert curve_key in ['task_name', 'storage_name', 'experiment_num', 'alg_name']
 
@@ -386,7 +385,8 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, storage_
 
     for i, outer_key in enumerate(y_data.keys()):
         for inner_key in y_data[outer_key].keys():
-            x_data[outer_key][inner_key] = x_data[outer_key][inner_key][0]  # assumes all x_data are the same  TODO: change that so that each curve is paired with its own x-data
+            x_data[outer_key][inner_key] = x_data[outer_key][inner_key][
+                0]  # assumes all x_data are the same  TODO: change that so that each curve is paired with its own x-data
 
             y_data_means[outer_key][inner_key] = np.stack(y_data[outer_key][inner_key], axis=-1).mean(-1)
             y_data_stds[outer_key][inner_key] = np.stack(y_data[outer_key][inner_key], axis=-1).std(-1)
@@ -504,7 +504,6 @@ def _make_vertical_densities_figure(storage_dirs, save_dir, logger):
 
 def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric,
                    performance_metric, performance_aggregation, make_performance_chart=True, make_learning_plots=True):
-
     assert type(storage_names) is list
 
     if make_learning_plots:
@@ -566,8 +565,8 @@ def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_di
 
 
 def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric,
-                     performance_metric, performance_aggregation, make_performance_chart=True, make_learning_plots=True):
-
+                     performance_metric, performance_aggregation, make_performance_chart=True,
+                     make_learning_plots=True):
     assert type(storage_name) is str
 
     storage_dir = get_root(root_dir) / storage_name

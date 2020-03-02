@@ -53,15 +53,14 @@ def sorted_nicely(l):
 
 
 def create_management_objects(dir_tree, logger, pbar, config):
-
     # Creates directory tres
 
     if dir_tree is None:
         dir_tree = DirectoryTree(alg_name=config.alg_name,
-                                    task_name=config.task_name,
-                                    desc=config.desc,
-                                    seed=config.seed,
-                                    root=config.root_dir)
+                                 task_name=config.task_name,
+                                 desc=config.desc,
+                                 seed=config.seed,
+                                 root=config.root_dir)
 
         dir_tree.create_directories()
 

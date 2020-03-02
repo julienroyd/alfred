@@ -133,7 +133,7 @@ def create_experiment_dir(desc, alg_name, task_name, param_dict, varied_params, 
             config_dict[param_name] = param_dict[param_name]
 
     tmp_dir_tree = DirectoryTree(id=storage_name_id, alg_name=alg_name, task_name=task_name, desc=desc, seed=1,
-                                    git_hashes=git_hashes, root=root_dir)
+                                 git_hashes=git_hashes, root=root_dir)
 
     experiment_num = int(tmp_dir_tree.experiment_dir.name.strip('experiment'))
 
@@ -148,13 +148,13 @@ def create_experiment_dir(desc, alg_name, task_name, param_dict, varied_params, 
         # Creates the experiment directory
 
         dir_tree = DirectoryTree(id=storage_name_id,
-                                    alg_name=config.alg_name,
-                                    task_name=config.task_name,
-                                    desc=config.desc,
-                                    seed=config.seed,
-                                    experiment_num=experiment_num,
-                                    git_hashes=git_hashes,
-                                    root=root_dir)
+                                 alg_name=config.alg_name,
+                                 task_name=config.task_name,
+                                 desc=config.desc,
+                                 seed=config.seed,
+                                 experiment_num=experiment_num,
+                                 git_hashes=git_hashes,
+                                 root=root_dir)
 
         dir_tree.create_directories()
 
@@ -291,7 +291,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
             for param_dict in experiments[i]:
                 dir_tree = create_experiment_dir(desc, alg_name, task_name, param_dict,
-                                                    varied_params, storage_name_id, SEEDS, root_dir=root_dir)
+                                                 varied_params, storage_name_id, SEEDS, root_dir=root_dir)
 
         else:
 
@@ -299,7 +299,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
             for param_dict in experiments[i]:
                 dir_tree = create_experiment_dir(desc, alg_name, task_name, param_dict,
-                                                    varied_params, storage_name_id, SEEDS, git_hashes)
+                                                 varied_params, storage_name_id, SEEDS, git_hashes)
 
         # Saves VARIATIONS in the storage directory
 
