@@ -38,6 +38,10 @@ def round_to_two(x):
     return round(x, -int(floor(log10(abs(x))) - 1))
 
 
+def keep_two_signif_digits(x):
+    return round(x, -int(floor(log10(abs(x))) - 1))
+
+
 def sorted_nicely(l):
     """ Sort the given iterable in the way that humans expect."""
     convert = lambda text: int(text) if text.isdigit() else text
