@@ -13,7 +13,7 @@ except ImportError as e:
         f"This module (alfred) assumes that the directory from which it is called contains:"
         f"\n\t1. a file named 'main.py'"
         f"\n\t2. a function 'main.get_main_args(overwritten_cmd_line)' that defines the hyperparameters for this project"
-        f"\n\t3. a function 'main.main(config, dir_manager, logger, pbar)' that runs the project with the specified hyperparameters"
+        f"\n\t3. a function 'main.main(config, dir_tree, logger, pbar)' that runs the project with the specified hyperparameters"
     )
 
 # other imports
@@ -132,10 +132,10 @@ def create_experiment_dir(desc, alg_name, task_name, param_dict, varied_params, 
         else:
             config_dict[param_name] = param_dict[param_name]
 
-    tmp_dir_manager = DirectoryTree(id=storage_name_id, alg_name=alg_name, task_name=task_name, desc=desc, seed=1,
+    tmp_dir_tree = DirectoryTree(id=storage_name_id, alg_name=alg_name, task_name=task_name, desc=desc, seed=1,
                                     git_hashes=git_hashes, root=root_dir)
 
-    experiment_num = int(tmp_dir_manager.experiment_dir.name.strip('experiment'))
+    experiment_num = int(tmp_dir_tree.experiment_dir.name.strip('experiment'))
 
     # For each seed in these experiments, creates a directory
 
@@ -147,7 +147,7 @@ def create_experiment_dir(desc, alg_name, task_name, param_dict, varied_params, 
 
         # Creates the experiment directory
 
-        dir_manager = DirectoryTree(id=storage_name_id,
+        dir_tree = DirectoryTree(id=storage_name_id,
                                     alg_name=config.alg_name,
                                     task_name=config.task_name,
                                     desc=config.desc,
@@ -156,7 +156,7 @@ def create_experiment_dir(desc, alg_name, task_name, param_dict, varied_params, 
                                     git_hashes=git_hashes,
                                     root=root_dir)
 
-        dir_manager.create_directories()
+        dir_tree.create_directories()
 
         # Saves the set of unique variations as json file (to easily identify the uniqueness of this experiment)
 
@@ -164,17 +164,17 @@ def create_experiment_dir(desc, alg_name, task_name, param_dict, varied_params, 
         config_unique_dict['alg_name'] = alg_name
         config_unique_dict['task_name'] = task_name
         config_unique_dict['seed'] = seed
-        save_dict_to_json(config_unique_dict, filename=str(dir_manager.seed_dir / 'config_unique.json'))
+        save_dict_to_json(config_unique_dict, filename=str(dir_tree.seed_dir / 'config_unique.json'))
 
         # Saves the config as json file (to be run later)
 
-        save_config_to_json(config, filename=str(dir_manager.seed_dir / 'config.json'))
+        save_config_to_json(config, filename=str(dir_tree.seed_dir / 'config.json'))
 
         # Creates empty file UNHATCHED meaning that the experiment is ready to be run
 
-        open(str(dir_manager.seed_dir / 'UNHATCHED'), 'w+').close()
+        open(str(dir_tree.seed_dir / 'UNHATCHED'), 'w+').close()
 
-    return dir_manager
+    return dir_tree
 
 
 def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_validation, resample, logger, root_dir):
@@ -286,11 +286,11 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
             # ... in a new storage_dir
 
-            tmp_dir_manager = DirectoryTree(alg_name=alg_name, task_name=task_name, desc=desc, seed=1, root=root_dir)
-            storage_name_id = tmp_dir_manager.storage_dir.name.split('_')[0]
+            tmp_dir_tree = DirectoryTree(alg_name=alg_name, task_name=task_name, desc=desc, seed=1, root=root_dir)
+            storage_name_id = tmp_dir_tree.storage_dir.name.split('_')[0]
 
             for param_dict in experiments[i]:
-                dir_manager = create_experiment_dir(desc, alg_name, task_name, param_dict,
+                dir_tree = create_experiment_dir(desc, alg_name, task_name, param_dict,
                                                     varied_params, storage_name_id, SEEDS, root_dir=root_dir)
 
         else:
@@ -298,12 +298,12 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
             # ... in an existing storage_dir
 
             for param_dict in experiments[i]:
-                dir_manager = create_experiment_dir(desc, alg_name, task_name, param_dict,
+                dir_tree = create_experiment_dir(desc, alg_name, task_name, param_dict,
                                                     varied_params, storage_name_id, SEEDS, git_hashes)
 
         # Saves VARIATIONS in the storage directory
 
-        first_experiment_created = int(dir_manager.current_experiment.strip('experiment')) - len(experiments) + 1
+        first_experiment_created = int(dir_tree.current_experiment.strip('experiment')) - len(experiments) + 1
         last_experiment_created = first_experiment_created + len(experiments) - 1
 
         if search_type == 'grid':
@@ -314,15 +314,15 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
             key = f'{first_experiment_created}-{last_experiment_created}'
 
-            if (dir_manager.storage_dir / 'variations.json').exists():
-                variations_dict = load_dict_from_json(filename=str(dir_manager.storage_dir / 'variations.json'))
+            if (dir_tree.storage_dir / 'variations.json').exists():
+                variations_dict = load_dict_from_json(filename=str(dir_tree.storage_dir / 'variations.json'))
                 assert key not in variations_dict.keys()
                 variations_dict[key] = VARIATIONS
             else:
                 variations_dict = {key: VARIATIONS}
 
-            save_dict_to_json(variations_dict, filename=str(dir_manager.storage_dir / 'variations.json'))
-            open(str(dir_manager.storage_dir / 'GRID_SEARCH'), 'w+').close()
+            save_dict_to_json(variations_dict, filename=str(dir_tree.storage_dir / 'variations.json'))
+            open(str(dir_tree.storage_dir / 'GRID_SEARCH'), 'w+').close()
 
         elif search_type == 'random':
 
@@ -334,19 +334,19 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
             j = 1
             while True:
-                if (dir_manager.storage_dir / f'variations{j}.png').exists():
+                if (dir_tree.storage_dir / f'variations{j}.png').exists():
                     j += 1
                 else:
                     break
-            fig.savefig(str(dir_manager.storage_dir / f'variations{j}.png'))
+            fig.savefig(str(dir_tree.storage_dir / f'variations{j}.png'))
             plt.close(fig)
 
-            open(str(dir_manager.storage_dir / 'RANDOM_SEARCH'), 'w+').close()
+            open(str(dir_tree.storage_dir / 'RANDOM_SEARCH'), 'w+').close()
 
         # Printing summary
 
         logger.info(f'Created directories '
-                    f'{str(dir_manager.storage_dir)}/experiment{first_experiment_created}-{last_experiment_created}')
+                    f'{str(dir_tree.storage_dir)}/experiment{first_experiment_created}-{last_experiment_created}')
 
     logger.info(f"\nEach of these experiments contain directories for the following seeds: {SEEDS}")
 

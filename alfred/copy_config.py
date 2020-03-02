@@ -48,9 +48,9 @@ def copy_configs(storage_name, new_task, new_desc, additional_params, root_dir):
 
     # overwrites it
 
-    tmp_dir_manager = DirectoryTree(alg_name="nope", task_name="nap", desc="nip", seed=1, root=root_dir)
+    tmp_dir_tree = DirectoryTree(alg_name="nope", task_name="nap", desc="nip", seed=1, root=root_dir)
     storage_name_id, git_hashes, _, _, _ = \
-        DirectoryTree.extract_info_from_storage_name(str(tmp_dir_manager.storage_dir.name))
+        DirectoryTree.extract_info_from_storage_name(str(tmp_dir_tree.storage_dir.name))
 
     desc = old_desc if new_desc is None else new_desc
 

@@ -12,7 +12,7 @@ except ImportError as e:
         f"This module (alfred) assumes that the directory from which it is called contains:"
         f"\n\t1. a file named 'main.py'"
         f"\n\t2. a function 'main.get_main_args(overwritten_cmd_line)' that defines the hyperparameters for this project"
-        f"\n\t3. a function 'main.main(config, dir_manager, logger, pbar)' that runs the project with the specified hyperparameters"
+        f"\n\t3. a function 'main.main(config, dir_tree, logger, pbar)' that runs the project with the specified hyperparameters"
     )
 
 # other imports
@@ -95,15 +95,15 @@ def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, l
 
                 try:
                     config = load_config_from_json(str(seed_dir / 'config.json'))
-                    dir_manager = DirectoryTree.init_from_seed_path(seed_dir, root=root_dir)
+                    dir_tree = DirectoryTree.init_from_seed_path(seed_dir, root=root_dir)
 
                     experiment_logger = create_logger(
                         name=f'PROCESS{process_i}:'
-                        f'{dir_manager.storage_dir.name}/'
-                        f'{dir_manager.experiment_dir.name}/'
-                        f'{dir_manager.seed_dir.name}',
+                        f'{dir_tree.storage_dir.name}/'
+                        f'{dir_tree.experiment_dir.name}/'
+                        f'{dir_tree.seed_dir.name}',
                         loglevel=logging.INFO,
-                        logfile=dir_manager.seed_dir / 'logger.out',
+                        logfile=dir_tree.seed_dir / 'logger.out',
                         streamHandle=not (use_pbar)
                     )
 
@@ -114,10 +114,10 @@ def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, l
                         pbar = None
 
                     logger.info(
-                        f"{dir_manager.storage_dir.name}/{dir_manager.experiment_dir.name}/{dir_manager.seed_dir.name} - "
+                        f"{dir_tree.storage_dir.name}/{dir_tree.experiment_dir.name}/{dir_tree.seed_dir.name} - "
                         f"Launching...")
 
-                    main(config=config, dir_manager=dir_manager, logger=experiment_logger, pbar=pbar)
+                    main(config=config, dir_tree=dir_tree, logger=experiment_logger, pbar=pbar)
 
                     open(str(seed_dir / 'COMPLETED'), 'w+').close()
                     call_i += 1

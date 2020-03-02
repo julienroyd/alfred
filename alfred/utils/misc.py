@@ -52,23 +52,23 @@ def sorted_nicely(l):
     return sorted(l, key=alphanum_key)
 
 
-def create_management_objects(dir_manager, logger, pbar, config):
+def create_management_objects(dir_tree, logger, pbar, config):
 
     # Creates directory tres
 
-    if dir_manager is None:
-        dir_manager = DirectoryTree(alg_name=config.alg_name,
+    if dir_tree is None:
+        dir_tree = DirectoryTree(alg_name=config.alg_name,
                                     task_name=config.task_name,
                                     desc=config.desc,
                                     seed=config.seed,
                                     root=config.root_dir)
 
-        dir_manager.create_directories()
+        dir_tree.create_directories()
 
     # Creates logger and prints config
 
     if logger is None:
-        logger = create_logger('MASTER', config.log_level, dir_manager.seed_dir / 'logger.out')
+        logger = create_logger('MASTER', config.log_level, dir_tree.seed_dir / 'logger.out')
     logger.debug(config_to_str(config))
 
     # Creates a progress-bar
@@ -78,7 +78,7 @@ def create_management_objects(dir_manager, logger, pbar, config):
 
     if pbar is not None:
         pbar.n = 0
-        pbar.desc += f'{dir_manager.storage_dir.name}/{dir_manager.experiment_dir.name}/{dir_manager.seed_dir.name}'
+        pbar.desc += f'{dir_tree.storage_dir.name}/{dir_tree.experiment_dir.name}/{dir_tree.seed_dir.name}'
         pbar.total = config.max_episodes
 
-    return dir_manager, logger, pbar
+    return dir_tree, logger, pbar

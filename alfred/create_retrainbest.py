@@ -71,8 +71,8 @@ def create_retrain_best(storage_name, run_over_tasks, n_retrain_seeds, root_dir)
 
                 # Gets new storage_name_id
 
-                tmp_dir_manager = DirectoryTree(alg_name="", task_name="", desc="", seed=1)
-                retrain_storage_id = tmp_dir_manager.storage_dir.name.split('_')[0]
+                tmp_dir_tree = DirectoryTree(alg_name="", task_name="", desc="", seed=1)
+                retrain_storage_id = tmp_dir_tree.storage_dir.name.split('_')[0]
 
                 # Creates the new storage_dir for retrainBest
                 if "random" in config_dict['desc'] or "grid" in config_dict['desc']:
@@ -82,7 +82,7 @@ def create_retrain_best(storage_name, run_over_tasks, n_retrain_seeds, root_dir)
                 else:
                     new_desc = config_dict['desc'] + f"_retrainBest{search_storage_id}"
 
-                dir_manager = create_experiment_dir(storage_name_id=retrain_storage_id,
+                dir_tree = create_experiment_dir(storage_name_id=retrain_storage_id,
                                                     desc=new_desc,
                                                     alg_name=config_dict['alg_name'],
                                                     task_name=config_dict['task_name'],
@@ -92,10 +92,10 @@ def create_retrain_best(storage_name, run_over_tasks, n_retrain_seeds, root_dir)
                                                     check_param_in_main=False,
                                                     SEEDS=[i * 10 for i in range(n_retrain_seeds)])
 
-                retrainBest_storage_dirs.append(dir_manager.storage_dir)
+                retrainBest_storage_dirs.append(dir_tree.storage_dir)
 
                 logger.info(f"New retrainBest:\n"
-                            f"{storage_dir.name} -> {dir_manager.storage_dir.name}")
+                            f"{storage_dir.name} -> {dir_tree.storage_dir.name}")
 
         except Exception as e:
             logger.info(f"Could not create retrainBest-storage_dir {storage_dir}")

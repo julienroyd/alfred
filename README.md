@@ -60,7 +60,7 @@ There are some structural requirements that `alfred` expects in order to be able
 
   1. a file called `main.py`
   2. a function `main.get_main_args(overwritten_cmd_line)` that defines the hyperparameters for this project
-  3. a function `main.main(config, dir_manager, logger, pbar)` that launches an experiment with the specified hyperparameters
+  3. a function `main.main(config, dir_tree, logger, pbar)` that launches an experiment with the specified hyperparameters
   
   4. a folder named `schedules` containing two files (`grid_schedule.py` and `random_schedule.py`) that specify what combinations of hyperparameters to vary over for these two types of searches. These are project-specific and therefore should be located in `my_ml_project`. However, an example of such files is included in `alfred/schedule_examples/`.
 
