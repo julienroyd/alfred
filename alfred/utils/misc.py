@@ -2,6 +2,10 @@ import logging
 import sys
 from math import floor, log10
 import re
+from tqdm import tqdm
+
+from alfred.utils.config import config_to_str
+from alfred.utils.directory_tree import DirectoryTree
 
 
 def create_logger(name, loglevel, logfile=None, streamHandle=True):
@@ -24,7 +28,6 @@ def create_logger(name, loglevel, logfile=None, streamHandle=True):
 
 
 def create_new_filehandler(logger_name, logfile):
-
     formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - {} - %(message)s'.format(logger_name),
                                   datefmt='%d/%m/%Y %H:%M:%S', )
 
@@ -47,3 +50,35 @@ def sorted_nicely(l):
     convert = lambda text: int(text) if text.isdigit() else text
     alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
     return sorted(l, key=alphanum_key)
+
+
+def create_management_objects(dir_manager, logger, pbar, config):
+
+    # Creates directory tres
+
+    if dir_manager is None:
+        dir_manager = DirectoryTree(alg_name=config.alg_name,
+                                    task_name=config.task_name,
+                                    desc=config.desc,
+                                    seed=config.seed,
+                                    root=config.root_dir)
+
+        dir_manager.create_directories()
+
+    # Creates logger and prints config
+
+    if logger is None:
+        logger = create_logger('MASTER', config.log_level, dir_manager.seed_dir / 'logger.out')
+    logger.debug(config_to_str(config))
+
+    # Creates a progress-bar
+
+    if pbar == "default_pbar":
+        pbar = tqdm()
+
+    if pbar is not None:
+        pbar.n = 0
+        pbar.desc += f'{dir_manager.storage_dir.name}/{dir_manager.experiment_dir.name}/{dir_manager.seed_dir.name}'
+        pbar.total = config.max_episodes
+
+    return dir_manager, logger, pbar
