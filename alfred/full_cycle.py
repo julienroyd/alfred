@@ -4,7 +4,7 @@
 #     once the search is done, it gets summarized and the best config is identified
 
 # (2) calls prepare_schedule for that configuration to creates storage_dir
-#     to retrain the best config for each environment and calls run_schedule on them
+#     to retrain the best config for each task and calls run_schedule on them
 
 # (3) benchmark the result against all storage_dirs with the same description
 

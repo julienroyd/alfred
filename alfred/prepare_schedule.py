@@ -186,10 +186,10 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
     elif search_type == 'random':
 
-        param_samples, AGENT_ALGS, ENV_NAMES, SEEDS, experiments, varied_params = extract_schedule_random(n_experiments)
+        param_samples, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params = extract_schedule_random(n_experiments)
         experiments = [experiments]
         param_samples = [param_samples]
-        n_combinations = len(AGENT_ALGS) * len(ENV_NAMES)
+        n_combinations = len(ALG_NAMES) * len(TASK_NAMES)
 
         if resample:
             assert not add_to_folder
@@ -212,7 +212,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
                                       "No --add_to_folder should be provided."
 
         desc = f"{search_type}_{desc}"
-        agent_env_combinations = list(itertools.product(ALG_NAMES, TASK_NAMES))
+        agent_task_combinations = list(itertools.product(ALG_NAMES, TASK_NAMES))
         mode = "NEW_STORAGE"
 
     elif add_to_folder is not None:
@@ -223,7 +223,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
         storage_name_id, git_hashes, alg_name, task_name, desc = \
             DirectoryTree.extract_info_from_storage_name(add_to_folder)
 
-        agent_env_combinations = list(itertools.product([alg_name], [task_name]))
+        agent_task_combinations = list(itertools.product([alg_name], [task_name]))
         mode = "EXISTING_STORAGE"
 
     else:
@@ -255,9 +255,9 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
             git_hashes = DirectoryTree.get_git_hashes()
 
             string = "\n"
-            for alg_name, task_name in agent_env_combinations:
+            for alg_name, task_name in agent_task_combinations:
                 string += f"\n\tID(to be determined)_{git_hashes}_{alg_name}_{task_name}_{desc}"
-            logger.debug(f"\n\nAbout to create {len(agent_env_combinations)} storage directories, "
+            logger.debug(f"\n\nAbout to create {len(agent_task_combinations)} storage directories, "
                          f"each with {len(experiments)} experiments:"
                          f"{string}")
 
@@ -278,7 +278,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
     # For each storage_dir to be created
 
-    for i, (alg_name, task_name) in enumerate(agent_env_combinations):
+    for i, (alg_name, task_name) in enumerate(agent_task_combinations):
 
         # Creates the experiment directories...
 

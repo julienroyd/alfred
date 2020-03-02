@@ -178,7 +178,7 @@ def _make_benchmark_performance_figure(storage_dirs, save_dir, logger, normalize
         with open(storage_dir / save_dir / f"{save_dir}_seed_scores.pkl", "rb") as f:
             individual_scores[storage_dir.name] = pickle.load(f)
 
-    # Print keys so that user can verify all these benchmarks make sense to compare (e.g. same envs)
+    # Print keys so that user can verify all these benchmarks make sense to compare (e.g. same tasks)
 
     for storage_name, idv_score in individual_scores.items():
         logger.debug(storage_name)

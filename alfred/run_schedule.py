@@ -236,7 +236,7 @@ def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_p
     storage_dir = get_root(root_dir) / storage_name
 
     if run_over_tasks:
-        storage_dirs = get_storage_dirs_across_envs(storage_dir, root_dir=root_dir)
+        storage_dirs = get_storage_dirs_across_tasks(storage_dir, root_dir=root_dir)
     else:
         storage_dirs = [storage_dir]
 

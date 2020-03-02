@@ -180,7 +180,7 @@ def get_all_seeds(storage_dir):
     return all_seeds_dirs
 
 
-def get_storage_dirs_across_envs(storage_dir, root_dir):
+def get_storage_dirs_across_tasks(storage_dir, root_dir):
     # Finds all storage directories that are identical (git_hashes, alg_name, desc) but for the task_name
 
     all_storage_dirs = sorted([path for path in get_root(root_dir).iterdir() if path.is_dir()])

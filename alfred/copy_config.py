@@ -1,3 +1,4 @@
+import argparse
 from alfred.utils.config import *
 from alfred.utils.directory_tree import *
 
@@ -53,7 +54,8 @@ def copy_configs(storage_name, new_task, new_desc, additional_params, root_dir):
 
     desc = old_desc if new_desc is None else new_desc
 
-    # creates the new folders with loaded config from which we overwrite the env name
+    # creates the new folders with loaded config from which we overwrite the task_name
+
     dir = None
     for config, config_unique in zip(config_list, config_unique_list):
 
@@ -91,4 +93,4 @@ def copy_configs(storage_name, new_task, new_desc, additional_params, root_dir):
 if __name__ == "__main__":
     args = get_args()
     print(args.__dict__)
-    copy_configs(args.storage_name, args.new_env, args.new_desc, args.additional_params, args.root_dir)
+    copy_configs(args.storage_name, args.new_task, args.new_desc, args.additional_params, args.root_dir)

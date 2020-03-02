@@ -3,7 +3,7 @@ import traceback
 import argparse
 
 from alfred.utils.misc import create_logger
-from alfred.utils.directory_tree import DirectoryTree, get_storage_dirs_across_envs, get_root
+from alfred.utils.directory_tree import DirectoryTree, get_storage_dirs_across_tasks, get_root
 from alfred.utils.config import parse_bool, load_dict_from_json
 from alfred.prepare_schedule import create_experiment_dir
 
@@ -28,7 +28,7 @@ def create_retrain_best(storage_name, run_over_tasks, n_retrain_seeds, root_dir)
     storage_dir = get_root(root_dir) / storage_name
 
     if run_over_tasks:
-        storage_dirs = get_storage_dirs_across_envs(storage_dir, root_dir)
+        storage_dirs = get_storage_dirs_across_tasks(storage_dir, root_dir)
     else:
         storage_dirs = [storage_dir]
 

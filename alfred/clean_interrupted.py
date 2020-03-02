@@ -25,7 +25,7 @@ def clean_interrupted(storage_name, clean_crashes, clean_over_tasks, ask_for_val
     storage_dir = get_root(root_dir) / storage_name
 
     if clean_over_tasks:
-        storage_dirs = get_storage_dirs_across_envs(storage_dir, root_dir=root_dir)
+        storage_dirs = get_storage_dirs_across_tasks(storage_dir, root_dir=root_dir)
     else:
         storage_dirs = [storage_dir]
 
