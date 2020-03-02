@@ -6,7 +6,11 @@ import seaborn as sns
 
 sns.set()
 
-def bar_chart(ax, scores, err_up=None, err_down=None, capsize=10., colors=None, group_names=None, xlabel="", ylabel="", title="", cmap="viridis"):
+# TODO: merge with 'official_plot_branch' from multi-agent project to use name and color dicts for benchmark.py
+
+def bar_chart(ax, scores, err_up=None, err_down=None, capsize=10., colors=None,
+              group_names=None, xlabel="", ylabel="", title="", cmap="viridis"):
+
     # data to plot
     n_groups = len(list(scores.values())[0])
 
@@ -42,9 +46,9 @@ def bar_chart(ax, scores, err_up=None, err_down=None, capsize=10., colors=None, 
     ax.legend(loc='upper right')
 
 
-def plot_curves(ax, ys, xs=None, colors=None, labels=None, xlabel="", ylabel="", title="", stds=None, smooth=False, cmap='viridis'):
+def plot_curves(ax, ys, xs=None, colors=None, labels=None, xlabel="", ylabel="", title="", fill=None, smooth=False, cmap='viridis'):
     if xs is None:
-        xs = [range(len(ys[0])) for _ in ys]
+        xs = [range(len(y)) for y in ys]
 
     if colors is None:
         cm = plt.cm.get_cmap(cmap)
@@ -61,13 +65,10 @@ def plot_curves(ax, ys, xs=None, colors=None, labels=None, xlabel="", ylabel="",
             ax.plot(x, y, color=colors[i], alpha=0.3)
             ax.plot(x, smooth(y), color=colors[i], label=labels[i])
 
-        # Regular plotting
-        else:
+        # Adds filling around curve (central tendency)
+        if fill is not None:
             ax.plot(x, y, color=colors[i], label=labels[i])
-
-            # Adds envelope given by the standard deviation
-            if stds is not None:
-                ax.fill_between(x, y - stds[i], y + stds[i], color=colors[i], alpha=0.1)
+            ax.fill_between(x, y - fill[i], y + fill[i], color=colors[i], alpha=0.1)
 
     ax.set_title(title, fontsize=12, fontweight='bold')
     ax.set_xlabel(xlabel)
@@ -90,13 +91,48 @@ def plot_sampled_hyperparams(ax, param_samples):
         ax[i].get_yaxis().set_ticks([])
         ax[i].legend(loc='upper right')
 
-def smooth(data_serie, smooth_factor=0.8):
+
+def plot_vertical_densities(ax, points_groups, colors=None, xlabel="", ylabel="", title="", cmap="viridis"):
+    assert type(points_groups) is OrderedDict
+
+    if colors is None:
+        cm = plt.cm.get_cmap(cmap)
+        colors = {key: np.array(cm(float(i) / float(len(points_groups)))[:3]) for i, key in
+                  enumerate(points_groups.keys())}
+
+    for i, (label, points) in enumerate(points_groups.items()):
+        x = [i] * len(points)
+        ax.plot(x, points, linestyle='', marker='o', label=label, alpha=0.2, color=colors[label])
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+    ax.set_ylabel(ylabel)
+    ax.set_xlabel(xlabel)
+    ax.set_xticklabels([""] * len(points_groups))
+    ax.set_xlim(-1, len(points_groups) + 3)
+
+    if title is not None:
+        ax.set_title(title, fontsize=12, fontweight='bold')
+
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0 + box.height * 0.2, box.width, box.height * 0.8])
+    ax.legend(loc='upper center', framealpha=0.25, bbox_to_anchor=(0.5, -0.05), fancybox=True, shadow=False, ncol=1)
+
+
+def smooth(data_serie, smooth_factor=0.2):
     assert smooth_factor > 0. and smooth_factor < 1.
-    mean = data_serie[0]
+    mean = None
+
     new_serie = []
     for value in data_serie:
-        mean = smooth_factor * mean + (1 - smooth_factor) * value
-        new_serie.append(mean)
+        if value is None:
+            new_serie.append(None)
+        else:
+            if mean is None:
+                mean = value
+            else:
+                mean = smooth_factor * mean + (1 - smooth_factor) * value
+
+            new_serie.append(mean)
 
     return new_serie
 
