@@ -196,7 +196,7 @@ def _make_benchmark_performance_figure(storage_dirs, save_dir, logger, normalize
             for inner_key in idv_score[outer_key]:
                 if inner_key not in list(scores.keys()):
                     scores[outer_key][inner_key] = OrderedDict()
-                _, _, _, _, task_name, _ = DirectoryTree.extract_info_from_storage_name(storage_name)
+                _, _, _, task_name, _ = DirectoryTree.extract_info_from_storage_name(storage_name)
                 scores[outer_key][inner_key] = idv_score[outer_key][inner_key]
 
     # First storage_dir will serve as reference if normalize_with_first_model is True
