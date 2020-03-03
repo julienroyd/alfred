@@ -419,7 +419,7 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, storage_
         plot_curves(current_ax,
                     xs=list(x_data[outer_key].values()),
                     ys=list(list(y_data_means[outer_key].values())),
-                    stds=list(list(y_data_stds[outer_key].values())),
+                    fill=list(list(y_data_stds[outer_key].values())),
                     labels=labels[outer_key],
                     xlabel=x_metric,
                     ylabel=y_metric,
