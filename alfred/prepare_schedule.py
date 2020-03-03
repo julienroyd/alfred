@@ -154,20 +154,6 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
     elif search_type == 'random':
 
         param_samples, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args = extract_schedule_random(n_experiments)
-        experiments = [experiments]
-        param_samples = [param_samples]
-        n_combinations = len(ALG_NAMES) * len(TASK_NAMES)
-
-        if resample:
-            assert not add_to_folder
-            for i in range(n_combinations - 1):
-                param_sa, _, _, _, expe, varied_pa, get_run_args = extract_schedule_random(n_experiments)
-                experiments.append(expe)
-                param_samples.append(param_sa)
-
-        else:
-            experiments = experiments * n_combinations
-            param_samples = param_samples * n_combinations
 
     else:
         raise NotImplementedError
@@ -195,6 +181,26 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
     else:
         raise NotImplementedError
+
+    # Duplicates or resamples hyperparameters to match the number of agent_task_combinations
+
+    n_combinations = len(agent_task_combinations)
+
+    experiments = [experiments]
+    if search_type=='random':
+        param_samples = [param_samples]
+
+    if search_type=='random' and resample:
+        assert not add_to_folder
+        for i in range(n_combinations - 1):
+            param_sa, _, _, _, expe, varied_pa, get_run_args = extract_schedule_random(n_experiments)
+            experiments.append(expe)
+            param_samples.append(param_sa)
+
+    else:
+        experiments = experiments * n_combinations
+        if search_type == 'random':
+            param_samples = param_samples * n_combinations
 
     # Printing summary of schedule_xyz.py
 
@@ -255,7 +261,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
         # For each experiments...
 
-        for param_dict in experiments[i]:
+        for param_dict in experiments[alg_task_i]:
 
             # Creates dictionary pointer-access to a training config object initialized by default
 
@@ -282,12 +288,12 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
             # Create the experiment directory
 
-            dir_tree = create_experiment_dir(storage_name_id, config, SEEDS, root_dir, git_hashes)
+            dir_tree = create_experiment_dir(storage_name_id, config, config_unique_dict, SEEDS, root_dir, git_hashes)
 
         # Saves VARIATIONS in the storage directory
 
-        first_experiment_created = int(dir_tree.current_experiment.strip('experiment')) - len(experiments) + 1
-        last_experiment_created = first_experiment_created + len(experiments) - 1
+        first_experiment_created = int(dir_tree.current_experiment.strip('experiment')) - len(experiments[0]) + 1
+        last_experiment_created = first_experiment_created + len(experiments[0]) - 1
 
         if search_type == 'grid':
 
