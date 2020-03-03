@@ -1,10 +1,9 @@
 import os
 import subprocess
 from pathlib import Path
-import os.path as osp
 from collections import OrderedDict
 
-def get_root(root):
+def get_root(root=None):
     return Path(root) if root is not None else Path(DirectoryTree.default_root)
 
 

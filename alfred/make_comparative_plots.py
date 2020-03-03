@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 import numpy as np
 import matplotlib
+from copy import deepcopy
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -11,9 +12,9 @@ from alfred.utils.misc import create_logger
 from alfred.utils.config import load_dict_from_json
 from alfred.utils.recorder import Recorder
 from alfred.utils.plots import plot_curves
-from alfred.utils.directory_tree import DirectoryTree
+from alfred.utils.directory_tree import DirectoryTree, get_root
 
-PLOTS_TO_MAKE = [('total_steps', 'eval_return')]
+COMPARATIVE_PLOTS_TO_MAKE = [('total_steps', 'eval_return')]
 
 
 def get_make_plots_args():
@@ -54,11 +55,18 @@ def create_comparative_figure(storage_dir, logger):
         experiment_groups = {key: {} for key in variations.keys()}
         for group_key, properties in experiment_groups.items():
             properties['variations'] = variations[group_key]
-            properties['variations_lengths'] = {k: len(properties['variations'][k]) for k in
-                                                properties['variations'].keys()}
 
-            i_max = sorted(properties['variations_lengths'].values())[-1]
-            j_max = int(np.prod(sorted(properties['variations_lengths'].values())[:-1]))
+            properties['variations_lengths'] = {k: len(properties['variations'][k])
+                                                for k in properties['variations'].keys()}
+
+            # Deleting alg_name and task_name from variations (because they will not be contained in same storage_dir)
+
+            hyperparam_variations_lengths = deepcopy(properties['variations_lengths'])
+            del hyperparam_variations_lengths['alg_name']
+            del hyperparam_variations_lengths['task_name']
+
+            i_max = sorted(hyperparam_variations_lengths.values())[-1]
+            j_max = int(np.prod(sorted(hyperparam_variations_lengths.values())[:-1]))
 
             if i_max < 4 and j_max == 1:
                 # If only one hyperparameter was varied over, we order plots on a line
@@ -101,7 +109,7 @@ def create_comparative_figure(storage_dir, logger):
         else:
             first_seed_idx = 0
 
-        for x_metric, y_metric in PLOTS_TO_MAKE:
+        for x_metric, y_metric in COMPARATIVE_PLOTS_TO_MAKE:
             logger.debug(f'\n{y_metric.upper()} as a function of {x_metric.upper()}:')
 
             # Creates the subplots
@@ -192,5 +200,5 @@ def create_comparative_figure(storage_dir, logger):
 if __name__ == '__main__':
     logger = create_logger("PLOTS", logging.DEBUG, logfile=None)
     args = get_make_plots_args()
-    storage_dir = DirectoryTree.root / args.storage_name
+    storage_dir = get_root() / args.storage_name
     create_comparative_figure(storage_dir, logger)
