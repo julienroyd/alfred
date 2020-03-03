@@ -61,15 +61,19 @@ def plot_curves(ax, ys, xs=None, colors=None, labels=None, xlabel="", ylabel="",
     # Plots losses and smoothed losses for every agent
     for i, (x, y) in enumerate(zip(xs, ys)):
 
-        # Smooth curve using running average
-        if smooth:
-            ax.plot(x, y, color=colors[i], alpha=0.3)
-            ax.plot(x, smooth(y), color=colors[i], label=labels[i])
-
         # Adds filling around curve (central tendency)
         if fill is not None:
             ax.plot(x, y, color=colors[i], label=labels[i])
             ax.fill_between(x, y - fill[i], y + fill[i], color=colors[i], alpha=0.1)
+
+        # Smooth curve using running average
+        elif smooth:
+            ax.plot(x, y, color=colors[i], alpha=0.3)
+            ax.plot(x, smooth(y), color=colors[i], label=labels[i])
+
+        # Just regular curve
+        else:
+            ax.plot(x, y, color=colors[i], label=labels[i])
 
     ax.set_title(title, fontsize=12, fontweight='bold')
     ax.set_xlabel(xlabel)
