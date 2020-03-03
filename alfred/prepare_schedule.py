@@ -5,10 +5,8 @@
 # 1. a folder named 'schedules' containing two files: grid_schedule.py and random_schedule.py
 # 2. in each of these folders, a function named get_run_args() that returns the hyperparameters to be used
 
-# other imports
 import logging
 import sys
-import os
 import itertools
 import argparse
 import matplotlib
@@ -277,7 +275,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
             tmp_dir_tree = DirectoryTree(alg_name=alg_name, task_name=task_name, desc=desc, seed=1, root=root_dir)
             storage_name_id = tmp_dir_tree.storage_dir.name.split('_')[0]
 
-            for param_dict in experiments[i]:
+            for param_dict in experiments:
                 dir_tree = create_experiment_dir(desc, alg_name, task_name, param_dict,
                                                  varied_params, storage_name_id, SEEDS,
                                                  root_dir, get_run_args, git_hashes)
@@ -286,7 +284,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
             # ... in an existing storage_dir
 
-            for param_dict in experiments[i]:
+            for param_dict in experiments:
                 dir_tree = create_experiment_dir(desc, alg_name, task_name, param_dict,
                                                  varied_params, storage_name_id, SEEDS,
                                                  root_dir, get_run_args)
