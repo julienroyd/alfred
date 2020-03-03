@@ -33,7 +33,7 @@ from alfred.clean_interrupted import clean_interrupted
 from alfred.benchmark import summarize_search
 
 
-def get_run_schedule_args():
+def get_launch_schedule_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--storage_name', type=str, required=True)
     parser.add_argument('--n_processes', type=int, default=1)
@@ -50,7 +50,7 @@ def get_run_schedule_args():
     return parser.parse_args()
 
 
-def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, logger, root_dir, process_i=0):
+def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, logger, root_dir, process_i=0):
     call_i = 0
 
     try:
@@ -193,8 +193,8 @@ def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, l
     return call_i
 
 
-def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_pbar, check_hash, run_over_tasks,
-                        run_clean_interrupted, root_dir):
+def launch_schedule(storage_name, n_processes, n_experiments_per_proc, use_pbar, check_hash, run_over_tasks,
+                    run_clean_interrupted, root_dir):
     # Creates logger
 
     storage_dir = get_root(root_dir) / storage_name
@@ -277,13 +277,13 @@ def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_p
 
             # Creates process
 
-            processes.append(Process(target=_run_schedule, args=(storage_dirs,
-                                                                 n_processes,
-                                                                 n_experiments_per_proc,
-                                                                 use_pbar,
-                                                                 logger,
-                                                                 root_dir,
-                                                                 i)))
+            processes.append(Process(target=_work_on_schedule, args=(storage_dirs,
+                                                                     n_processes,
+                                                                     n_experiments_per_proc,
+                                                                     use_pbar,
+                                                                     logger,
+                                                                     root_dir,
+                                                                     i)))
         try:
             # start processes
 
@@ -318,17 +318,17 @@ def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_p
     # No additional processes
 
     else:
-        n_calls = _run_schedule(storage_dirs,
-                                n_processes,
-                                n_experiments_per_proc,
-                                use_pbar,
-                                master_logger,
-                                root_dir=root_dir)
+        n_calls = _work_on_schedule(storage_dirs,
+                                    n_processes,
+                                    n_experiments_per_proc,
+                                    use_pbar,
+                                    master_logger,
+                                    root_dir=root_dir)
 
     return n_calls
 
 
 if __name__ == '__main__':
     time.sleep(np.random.uniform(low=0., high=1.5))
-    kwargs = vars(get_run_schedule_args())
-    launch_run_schedule(**kwargs)
+    kwargs = vars(get_launch_schedule_args())
+    launch_schedule(**kwargs)

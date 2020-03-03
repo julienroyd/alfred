@@ -14,7 +14,7 @@ from copy import deepcopy
 import logging
 
 from alfred.create_retrainbest import create_retrain_best
-from alfred.run_schedule import launch_run_schedule
+from alfred.run_schedule import launch_schedule
 from alfred.utils.config import parse_bool
 from alfred.utils.misc import create_logger
 
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     run_schedule_args = deepcopy(vars(full_cycle_args))
     del run_schedule_args['n_retrain_seeds']
 
-    n_calls = launch_run_schedule(**run_schedule_args)
+    n_calls = launch_schedule(**run_schedule_args)
 
     if full_cycle_args.n_processes == 1 and full_cycle_args.n_experiments_per_proc == 1 and n_calls >= 1:
         full_cycle_args.n_experiments_per_proc = 0
@@ -89,7 +89,7 @@ if __name__ == '__main__':
         run_schedule_args['n_processes'] = full_cycle_args.n_processes
         for retrainBest_storage_dir in retrainBest_storage_dirs:
             run_schedule_args['storage_name'] = retrainBest_storage_dir.name
-            launch_run_schedule(**run_schedule_args)
+            launch_schedule(**run_schedule_args)
 
     # else:
     #
