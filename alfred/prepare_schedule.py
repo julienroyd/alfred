@@ -1,20 +1,9 @@
 # USAGE
 # TODO: write description of how to use it (maybe in the help from argparse?)
 
-# ASSUMPTIONS: this module (alfred) assumes that the directory from which it is called contains:
-# 1. a file named 'main.py'
-# 2. a function 'main.get_main_args()' that defines the hyperparameters for this project
-# 3. a folder named 'schedules' containing two files: grid_schedule.py and random_schedule.py
-try:
-    from main import main, get_main_args
-except ImportError as e:
-    raise ImportError(
-        f"{e.msg}\n"
-        f"This module (alfred) assumes that the directory from which it is called contains:"
-        f"\n\t1. a file named 'main.py'"
-        f"\n\t2. a function 'main.get_main_args(overwritten_cmd_line)' that defines the hyperparameters for this project"
-        f"\n\t3. a function 'main.main(config, dir_tree, logger, pbar)' that runs the project with the specified hyperparameters"
-    )
+# ASSUMPTIONS: alfred.prepare_schedule assumes the following structure:
+# 1. a folder named 'schedules' containing two files: grid_schedule.py and random_schedule.py
+# 2. in each of these folders, a function named get_run_args() that returns the hyperparameters to be used
 
 # other imports
 import logging
@@ -36,24 +25,24 @@ from alfred.utils.misc import create_logger
 def get_prepare_schedule_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--desc', type=str, default=None)
-    parser.add_argument('--add_to_folder', type=str, default=None)
-    parser.add_argument('--search_type', type=str, default='random', choices=['grid', 'random'])
+    parser.add_argument('--search_type', type=str, choices=['grid', 'random'], required=True)
     parser.add_argument('--n_experiments', type=int, default=50)
+    parser.add_argument('--root_dir', default=None, type=str)
+    parser.add_argument('--add_to_folder', type=str, default=None)
     parser.add_argument('--resample', type=parse_bool, default=True,
                         help="If true we resample a configuration for each task*alg combination")
-    parser.add_argument('--root_dir', default=None, type=str)
+
     return parser.parse_args()
 
 
 def extract_schedule_grid():
     try:
-        from schedules.grid_schedule import VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS
+        from schedules.grid_schedule import VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS, get_run_args
     except ImportError as e:
         raise ImportError(
-            f"This module (alfred) assumes that the directory from which you called it contains:"
-            f"\n\t1. a folder named 'schedules'"
-            f"\n\t2. a file named 'grid_schedule.py' containing the definition of the grid-search to prepare"
-            f"(see alfred/schedules_examples)"
+            f"alfred.prepare_schedule assumes the following structure (see alfred/schedules_examples):"
+            f"\n\t1. a folder named 'schedules' containing two files: grid_schedule.py and random_schedule.py"
+            f"\n\t2. in each of these folders, a function named get_run_args() that returns the hyperparameters to be used"
         )
 
     # Transforms our dictionary of lists (key: list of values) into a list of lists of tuples (key, single_value)
@@ -75,18 +64,17 @@ def extract_schedule_grid():
 
     varied_params = [k for k in VARIATIONS.keys() if len(VARIATIONS[k]) > 1]
 
-    return VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params
+    return VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args
 
 
 def extract_schedule_random(n_experiments):
     try:
-        from schedules.random_schedule import sample_experiment, ALG_NAMES, TASK_NAMES, SEEDS
+        from schedules.random_schedule import sample_experiment, ALG_NAMES, TASK_NAMES, SEEDS, get_run_args
     except ImportError as e:
         raise ImportError(
-            f"This module (alfred) assumes that the directory from which you called it contains:"
-            f"\n\t1. a folder named 'schedules'"
-            f"\n\t2. a file named 'random_schedule.py' containing the definition of the grid-search to prepare"
-            f"(see alfred/schedules_examples)"
+            f"alfred.prepare_schedule assumes the following structure (see alfred/schedules_examples):"
+            f"\n\t1. a folder named 'schedules' containing two files: grid_schedule.py and random_schedule.py"
+            f"\n\t2. in each of these folders, a function named get_run_args() that returns the hyperparameters to be used"
         )
 
     # Samples all experiments' hyperparameters
@@ -113,14 +101,14 @@ def extract_schedule_random(n_experiments):
         del param_samples[param_name]
     varied_params = list(param_samples.keys())
 
-    return param_samples, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params
+    return param_samples, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args
 
 
 def create_experiment_dir(desc, alg_name, task_name, param_dict, varied_params, storage_name_id, SEEDS,
-                          root_dir, git_hashes=None):
+                          root_dir, get_run_args, git_hashes=None):
     # Creates dictionary pointer-access to a training config object initialized by default
 
-    config = get_main_args(overwritten_cmd_line="")
+    config = get_run_args(overwritten_cmd_line="")
     config_dict = vars(config)
 
     # Modifies the config for this particular experiment
@@ -128,7 +116,7 @@ def create_experiment_dir(desc, alg_name, task_name, param_dict, varied_params, 
     for param_name in param_dict.keys():
         if param_name not in config_dict.keys():
             raise ValueError(f"'{param_name}' taken from the schedule is not a valid hyperparameter "
-                             f"i.e. it cannot be found in {os.getcwd()}/main.get_main_args().")
+                             f"i.e. it cannot be found in the Namespace returned by get_run_args().")
         else:
             config_dict[param_name] = param_dict[param_name]
 
@@ -182,11 +170,11 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
     if search_type == 'grid':
 
-        VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params = extract_schedule_grid()
+        VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args = extract_schedule_grid()
 
     elif search_type == 'random':
 
-        param_samples, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params = extract_schedule_random(n_experiments)
+        param_samples, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args = extract_schedule_random(n_experiments)
         experiments = [experiments]
         param_samples = [param_samples]
         n_combinations = len(ALG_NAMES) * len(TASK_NAMES)
@@ -194,7 +182,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
         if resample:
             assert not add_to_folder
             for i in range(n_combinations - 1):
-                param_sa, _, _, _, expe, varied_pa = extract_schedule_random(n_experiments)
+                param_sa, _, _, _, expe, varied_pa, get_run_args = extract_schedule_random(n_experiments)
                 experiments.append(expe)
                 param_samples.append(param_sa)
 
@@ -243,7 +231,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
     else:
         info_str += f"\n\nParams to be varied over: {varied_params}"
 
-    info_str += f"\n\nDefault {config_to_str(get_main_args(overwritten_cmd_line=''))}\n"
+    info_str += f"\n\nDefault {config_to_str(get_run_args(overwritten_cmd_line=''))}\n"
 
     logger.debug(info_str)
 
@@ -291,7 +279,8 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
             for param_dict in experiments[i]:
                 dir_tree = create_experiment_dir(desc, alg_name, task_name, param_dict,
-                                                 varied_params, storage_name_id, SEEDS, root_dir=root_dir)
+                                                 varied_params, storage_name_id, SEEDS,
+                                                 root_dir, get_run_args, git_hashes)
 
         else:
 
@@ -299,7 +288,8 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
             for param_dict in experiments[i]:
                 dir_tree = create_experiment_dir(desc, alg_name, task_name, param_dict,
-                                                 varied_params, storage_name_id, SEEDS, git_hashes)
+                                                 varied_params, storage_name_id, SEEDS,
+                                                 root_dir, get_run_args)
 
         # Saves VARIATIONS in the storage directory
 

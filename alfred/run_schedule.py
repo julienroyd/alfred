@@ -3,15 +3,15 @@
 
 # ASSUMPTION: this module (alfred) assumes that the directory from which it is called contains:
 # 1. a file named 'main.py'
-# 2. a function 'main.get_main_args()' that defines the hyperparameters for this project
+# 2. a function 'main.get_run_args()' that defines the hyperparameters for this project
 try:
-    from main import main, get_main_args
+    from main import main, get_run_args
 except ImportError as e:
     raise ImportError(
         f"{e.msg}\n"
         f"This module (alfred) assumes that the directory from which it is called contains:"
         f"\n\t1. a file named 'main.py'"
-        f"\n\t2. a function 'main.get_main_args(overwritten_cmd_line)' that defines the hyperparameters for this project"
+        f"\n\t2. a function 'main.get_run_args(overwritten_cmd_line)' that defines the hyperparameters for this project"
         f"\n\t3. a function 'main.main(config, dir_tree, logger, pbar)' that runs the project with the specified hyperparameters"
     )
 
