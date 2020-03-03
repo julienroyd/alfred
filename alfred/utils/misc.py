@@ -81,3 +81,10 @@ def create_management_objects(dir_tree, logger, pbar, config):
         pbar.total = config.max_episodes
 
     return dir_tree, logger, pbar
+
+
+def check_params_defined_twice(keys):
+    counted_keys = {key: keys.count(key) for key in keys}
+    for key in counted_keys.keys():
+        if counted_keys[key] > 1:
+            raise ValueError(f'Parameter "{key}" appears {counted_keys[key]} times in the schedule.')
