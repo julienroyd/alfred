@@ -102,24 +102,11 @@ def extract_schedule_random(n_experiments):
     return param_samples, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args
 
 
-def create_experiment_dir(desc, alg_name, task_name, param_dict, varied_params, storage_name_id, SEEDS,
-                          root_dir, get_run_args, git_hashes=None):
-    # Creates dictionary pointer-access to a training config object initialized by default
+def create_experiment_dir(storage_name_id, config, config_unique_dict, SEEDS, root_dir, git_hashes=None):
+    # Determine experiment number
 
-    config = get_run_args(overwritten_cmd_line="")
-    config_dict = vars(config)
-
-    # Modifies the config for this particular experiment
-
-    for param_name in param_dict.keys():
-        if param_name not in config_dict.keys():
-            raise ValueError(f"'{param_name}' taken from the schedule is not a valid hyperparameter "
-                             f"i.e. it cannot be found in the Namespace returned by get_run_args().")
-        else:
-            config_dict[param_name] = param_dict[param_name]
-
-    tmp_dir_tree = DirectoryTree(id=storage_name_id, alg_name=alg_name, task_name=task_name, desc=desc, seed=1,
-                                 git_hashes=git_hashes, root=root_dir)
+    tmp_dir_tree = DirectoryTree(id=storage_name_id, alg_name=config.alg_name, task_name=config.task_name,
+                                 desc=config.desc, seed=1, git_hashes=git_hashes, root=root_dir)
 
     experiment_num = int(tmp_dir_tree.experiment_dir.name.strip('experiment'))
 
@@ -127,9 +114,7 @@ def create_experiment_dir(desc, alg_name, task_name, param_dict, varied_params, 
 
     for seed in SEEDS:
         config.seed = seed
-        config.alg_name = alg_name
-        config.task_name = task_name
-        config.desc = desc
+        config_unique_dict['seed'] = seed
 
         # Creates the experiment directory
 
@@ -144,17 +129,13 @@ def create_experiment_dir(desc, alg_name, task_name, param_dict, varied_params, 
 
         dir_tree.create_directories()
 
-        # Saves the set of unique variations as json file (to easily identify the uniqueness of this experiment)
-
-        config_unique_dict = {k: v for k, v in param_dict.items() if k in varied_params}
-        config_unique_dict['alg_name'] = alg_name
-        config_unique_dict['task_name'] = task_name
-        config_unique_dict['seed'] = seed
-        save_dict_to_json(config_unique_dict, filename=str(dir_tree.seed_dir / 'config_unique.json'))
-
         # Saves the config as json file (to be run later)
 
         save_config_to_json(config, filename=str(dir_tree.seed_dir / 'config.json'))
+
+        # Saves a dictionary of what makes each seed_dir unique (just for display on graphs)
+
+        save_dict_to_json(config_unique_dict, filename=str(dir_tree.seed_dir / 'config_unique.json'))
 
         # Creates empty file UNHATCHED meaning that the experiment is ready to be run
 
@@ -242,7 +223,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
             string = "\n"
             for alg_name, task_name in agent_task_combinations:
-                string += f"\n\tID(to be determined)_{git_hashes}_{alg_name}_{task_name}_{desc}"
+                string += f"\n\tID_{git_hashes}_{alg_name}_{task_name}_{desc}"
             logger.debug(f"\n\nAbout to create {len(agent_task_combinations)} storage directories, "
                          f"each with {len(experiments)} experiments:"
                          f"{string}")
@@ -264,30 +245,44 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
     # For each storage_dir to be created
 
-    for i, (alg_name, task_name) in enumerate(agent_task_combinations):
+    for alg_task_i, (alg_name, task_name) in enumerate(agent_task_combinations):
 
-        # Creates the experiment directories...
+        # Determines storing ID (if new storage_dir)
 
         if mode == "NEW_STORAGE":
-
-            # ... in a new storage_dir
-
             tmp_dir_tree = DirectoryTree(alg_name=alg_name, task_name=task_name, desc=desc, seed=1, root=root_dir)
             storage_name_id = tmp_dir_tree.storage_dir.name.split('_')[0]
 
-            for param_dict in experiments:
-                dir_tree = create_experiment_dir(desc, alg_name, task_name, param_dict,
-                                                 varied_params, storage_name_id, SEEDS,
-                                                 root_dir, get_run_args, git_hashes)
+        # For each experiments...
 
-        else:
+        for param_dict in experiments[i]:
 
-            # ... in an existing storage_dir
+            # Creates dictionary pointer-access to a training config object initialized by default
 
-            for param_dict in experiments:
-                dir_tree = create_experiment_dir(desc, alg_name, task_name, param_dict,
-                                                 varied_params, storage_name_id, SEEDS,
-                                                 root_dir, get_run_args)
+            config = get_run_args(overwritten_cmd_line="")
+            config_dict = vars(config)
+
+            # Modifies the config for this particular experiment
+
+            config.alg_name = alg_name
+            config.task_name = task_name
+            config.desc = desc
+
+            config_unique_dict = {k: v for k, v in param_dict.items() if k in varied_params}
+            config_unique_dict['alg_name'] = config.alg_name
+            config_unique_dict['task_name'] = config.task_name
+            config_unique_dict['seed'] = config.seed
+
+            for param_name in param_dict.keys():
+                if param_name not in config_dict.keys():
+                    raise ValueError(f"'{param_name}' taken from the schedule is not a valid hyperparameter "
+                                     f"i.e. it cannot be found in the Namespace returned by get_run_args().")
+                else:
+                    config_dict[param_name] = param_dict[param_name]
+
+            # Create the experiment directory
+
+            dir_tree = create_experiment_dir(storage_name_id, config, SEEDS, root_dir, git_hashes)
 
         # Saves VARIATIONS in the storage directory
 

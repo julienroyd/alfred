@@ -4,8 +4,13 @@ import argparse
 
 from alfred.utils.misc import create_logger
 from alfred.utils.directory_tree import DirectoryTree, get_storage_dirs_across_tasks, get_root
-from alfred.utils.config import parse_bool, load_dict_from_json
+from alfred.utils.config import parse_bool, load_dict_from_json, save_dict_to_json
 from alfred.prepare_schedule import create_experiment_dir
+
+try:
+    from schedules import grid_schedule  # just to get DirectoryTree.git_repos_to_track configured
+except ImportError:
+    pass
 
 
 def get_args():
@@ -49,8 +54,8 @@ def create_retrain_best(storage_name, run_over_tasks, n_retrain_seeds, root_dir)
                 assert len(corresponding_retrain_directories) == 1
                 retrainBest_dir = corresponding_retrain_directories[0]
 
-                logger.info(f"Existing retrainBest\n"
-                            f"{storage_dir.name} -> {retrainBest_dir.name}")
+                logger.info(f"Existing retrainBest\n\n"
+                            f"\t{storage_dir.name} -> {retrainBest_dir.name}")
 
                 retrainBest_storage_dirs.append(retrainBest_dir)
                 continue
@@ -69,12 +74,8 @@ def create_retrain_best(storage_name, run_over_tasks, n_retrain_seeds, root_dir)
 
                 config_dict['max_episodes'] *= 2
 
-                # Gets new storage_name_id
+                # Updates the description
 
-                tmp_dir_tree = DirectoryTree(alg_name="", task_name="", desc="", seed=1)
-                retrain_storage_id = tmp_dir_tree.storage_dir.name.split('_')[0]
-
-                # Creates the new storage_dir for retrainBest
                 if "random" in config_dict['desc'] or "grid" in config_dict['desc']:
                     new_desc = config_dict['desc'] \
                         .replace("random", f"retrainBest{search_storage_id}") \
@@ -82,29 +83,42 @@ def create_retrain_best(storage_name, run_over_tasks, n_retrain_seeds, root_dir)
                 else:
                     new_desc = config_dict['desc'] + f"_retrainBest{search_storage_id}"
 
+                config_dict['desc'] = new_desc
+
+                # Creates config Namespace with loaded config_dict
+
+                config = argparse.ArgumentParser().parse_args("")
+                config_pointer = vars(config)
+                config_pointer.update(config_dict)  # updates config
+
+                config_unique_dict = {}
+                config_unique_dict['alg_name'] = config.alg_name
+                config_unique_dict['task_name'] = config.task_name
+                config_unique_dict['seed'] = config.seed
+
+                # Gets new storage_name_id
+
+                tmp_dir_tree = DirectoryTree(alg_name="", task_name="", desc="", seed=1)
+                retrain_storage_id = tmp_dir_tree.storage_dir.name.split('_')[0]
+
+                # Creates the new storage_dir for retrainBest
+
                 dir_tree = create_experiment_dir(storage_name_id=retrain_storage_id,
-                                                 desc=new_desc,
-                                                 alg_name=config_dict['alg_name'],
-                                                 task_name=config_dict['task_name'],
-                                                 param_dict=config_dict,
-                                                 varied_params=[],
+                                                 config=config,
+                                                 config_unique_dict=config_unique_dict,
+                                                 SEEDS=[i * 10 for i in range(n_retrain_seeds)],
                                                  root_dir=root_dir,
-                                                 check_param_in_main=False,
-                                                 SEEDS=[i * 10 for i in range(n_retrain_seeds)])
+                                                 git_hashes=DirectoryTree.get_git_hashes())
 
                 retrainBest_storage_dirs.append(dir_tree.storage_dir)
 
-                logger.info(f"New retrainBest:\n"
-                            f"{storage_dir.name} -> {dir_tree.storage_dir.name}")
+                logger.info(f"New retrainBest:\n\n"
+                            f"\t{storage_dir.name} -> {dir_tree.storage_dir.name}")
 
         except Exception as e:
             logger.info(f"Could not create retrainBest-storage_dir {storage_dir}")
             logger.info(f"\n\n{e}\n{traceback.format_exc()}")
 
-    info_str = "The following retrainBest directories will be runned over:\n"
-    for retrainBest_storage_dir in retrainBest_storage_dirs:
-        info_str += f"\n\t{retrainBest_storage_dir}"
-    logger.info(info_str + "\n")
     return retrainBest_storage_dirs
 
 
