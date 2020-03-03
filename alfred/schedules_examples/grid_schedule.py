@@ -1,3 +1,5 @@
+from alfred.utils.misc import check_params_defined_twice
+
 # (1) Enter the algorithms to be run for each experiment
 
 ALG_NAMES = ['simpleMLP']
@@ -28,10 +30,12 @@ assert "seed" not in VARIATIONS.keys()
 assert "alg_name" not in VARIATIONS.keys()
 assert "task_name" not in VARIATIONS.keys()
 
-# Security check to make sure every specified parameter are defined only once
+# Simple security check to make sure every specified parameter is defined only once
 
-keys = list(VARIATIONS.keys())
-counted_keys = {key: keys.count(key) for key in keys}
-for key in counted_keys.keys():
-    if counted_keys[key] > 1:
-        raise ValueError(f'Parameter "{key}" appears {counted_keys[key]} times in the schedule.')
+check_params_defined_twice(keys=[tuple[0] for tuple in VARIATIONS])
+
+
+# Function that returns the hyperparameters for the current search
+
+def get_run_args(overwritten_cmd_line):
+    raise NotADirectoryError

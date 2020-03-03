@@ -1,8 +1,6 @@
 import numpy as np
-from math import floor, log10
 from collections import OrderedDict
-from alfred.utils.misc import round_to_two
-
+from alfred.utils.misc import keep_two_signif_digits, check_params_defined_twice
 
 # (1) Enter the algorithms to be run for each experiment
 
@@ -41,10 +39,10 @@ def sample_experiment():
    assert "task_name" not in sampled_config.keys()
 
    # Simple security check to make sure every specified parameter is defined only once
-   keys = list(sampled_config.keys())
-   counted_keys = {key: keys.count(key) for key in keys}
-   for key in counted_keys.keys():
-       if counted_keys[key] > 1:
-           raise ValueError(f'Parameter "{key}" appears {counted_keys[key]} times in the schedule.')
 
-   return sampled_config
+   check_params_defined_twice(keys=list(sampled_config.keys()))
+
+# Function that returns the hyperparameters for the current search
+
+def get_run_args(overwritten_cmd_line):
+   raise NotADirectoryError
