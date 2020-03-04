@@ -1,6 +1,9 @@
 import numpy as np
 from collections import OrderedDict
 from alfred.utils.misc import keep_two_signif_digits, check_params_defined_twice
+from alfred.utils.directory_tree import DirectoryTree
+from pathlib import Path
+import packageName
 
 # (1) Enter the algorithms to be run for each experiment
 
@@ -49,3 +52,10 @@ def sample_experiment():
 
 def get_run_args(overwritten_cmd_line):
    raise NotADirectoryError
+
+
+# Setting up alfred's DirectoryTree
+
+DirectoryTree.default_root = "./storage"
+DirectoryTree.git_repos_to_track['mlProject'] = str(Path(__file__).parents[2])
+DirectoryTree.git_repos_to_track['someDependency'] = str(Path(packageName.__file__).parents[1])

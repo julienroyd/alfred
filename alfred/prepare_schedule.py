@@ -2,14 +2,18 @@
 # TODO: write description of how to use it (maybe in the help from argparse?)
 
 # ASSUMPTIONS: alfred.prepare_schedule assumes the following structure:
-# 1. a folder named 'schedules' containing two files: grid_schedule.py and random_schedule.py
-# 2. in each of these folders, a function named get_run_args() that returns the hyperparameters to be used
+# 1. a folder named 'schedules' containing containing a separate folder for each schedule (search)
+# 2. in each of these folders, either a file named 'grid_schedule.py' or 'random_schedule.py'
+#     constructed according to the examples provided in 'alfred/schedules_examples'
 
 import logging
 import sys
 import itertools
 import argparse
 import matplotlib
+from pathlib import Path, PosixPath
+from importlib import import_module
+import os
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -23,7 +27,8 @@ from alfred.utils.misc import create_logger
 def get_prepare_schedule_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--desc', type=str, default=None)
-    parser.add_argument('--search_type', type=str, choices=['grid', 'random'], required=True)
+    parser.add_argument('--schedule_file', type=str, required=True,
+                        help="e.g. --schedule_file=schedules/search1/grid_schedule_search1.py")
     parser.add_argument('--root_dir', default=None, type=str)
     parser.add_argument('--add_to_folder', type=str, default=None)
     parser.add_argument('--resample', type=parse_bool, default=True,
@@ -32,14 +37,20 @@ def get_prepare_schedule_args():
     return parser.parse_args()
 
 
-def extract_schedule_grid():
+def extract_schedule_grid(schedule_module):
     try:
-        from schedules.grid_schedule import VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS, get_run_args
+        grid_schedule = import_module(schedule_module)
+        VARIATIONS = grid_schedule.VARIATIONS
+        ALG_NAMES = grid_schedule.ALG_NAMES
+        TASK_NAMES = grid_schedule.TASK_NAMES
+        SEEDS = grid_schedule.SEEDS
+        get_run_args = grid_schedule.get_run_args
     except ImportError as e:
         raise ImportError(
-            f"alfred.prepare_schedule assumes the following structure (see alfred/schedules_examples):"
-            f"\n\t1. a folder named 'schedules' containing two files: grid_schedule.py and random_schedule.py"
-            f"\n\t2. in each of these folders, a function named get_run_args() that returns the hyperparameters to be used"
+            f"{e}\nalfred.prepare_schedule assumes the following structure:"
+            f"\n\t1. a folder named 'schedules' containing containing a separate folder for each schedule (search)"
+            f"\n\t2. in each of these folders, either a file named 'grid_schedule.py' or 'random_schedule.py' "
+            f"constructed according to the examples provided in 'alfred/schedules_examples'"
         )
 
     # Transforms our dictionary of lists (key: list of values) into a list of lists of tuples (key, single_value)
@@ -64,14 +75,21 @@ def extract_schedule_grid():
     return VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args
 
 
-def extract_schedule_random():
+def extract_schedule_random(schedule_module):
     try:
-        from schedules.random_schedule import sample_experiment, ALG_NAMES, TASK_NAMES, SEEDS, N_EXPERIMENTS, get_run_args
+        random_schedule = import_module(schedule_module)
+        sample_experiment = random_schedule.sample_experiment
+        ALG_NAMES = random_schedule.ALG_NAMES
+        TASK_NAMES = random_schedule.TASK_NAMES
+        SEEDS = random_schedule.SEEDS
+        N_EXPERIMENTS = random_schedule.N_EXPERIMENTS
+        get_run_args = random_schedule.get_run_args
     except ImportError as e:
         raise ImportError(
-            f"alfred.prepare_schedule assumes the following structure (see alfred/schedules_examples):"
-            f"\n\t1. a folder named 'schedules' containing two files: grid_schedule.py and random_schedule.py"
-            f"\n\t2. in each of these folders, a function named get_run_args() that returns the hyperparameters to be used"
+            f"{e}\nalfred.prepare_schedule assumes the following structure:"
+            f"\n\t1. a folder named 'schedules' containing containing a separate folder for each schedule (search)"
+            f"\n\t2. in each of these folders, either a file named 'grid_schedule.py' or 'random_schedule.py' "
+            f"constructed according to the examples provided in 'alfred/schedules_examples'"
         )
 
     # Samples all experiments' hyperparameters
@@ -143,16 +161,38 @@ def create_experiment_dir(storage_name_id, config, config_unique_dict, SEEDS, ro
     return dir_tree
 
 
-def prepare_schedule(desc, add_to_folder, search_type, ask_for_validation, resample, logger, root_dir):
+def prepare_schedule(desc, schedule_file, root_dir, add_to_folder, resample, logger, ask_for_validation):
+    # Infers the search_type (grid or random) from provided schedule_file
+
+    schedule_file_path = Path(schedule_file)
+
+    if "grid_schedule" in schedule_file_path.name:
+        search_type = 'grid'
+    elif "random_schedule" in schedule_file_path.name:
+        search_type = 'random'
+    else:
+        raise ValueError(f"Provided --schedule_file has the name '{schedule_file_path.name}'. "
+                         "Only grid_schedule's and random_schedule's are supported. "
+                         "The name of the provided '--schedule_file' must fit one of the following forms: "
+                         "'grid_schedule_NAME.py' or 'random_schedule_NAME.py'.")
+
+    if len([f for f in schedule_file_path.parent.iterdir() if '.py' in f.name]) > 1:
+        raise ValueError(f"Only one schedule file (.py) should be present in 'schedule_file.parent'")
+
+    if not schedule_file_path.exists():
+        raise ValueError(f"Cannot find the provided '--schedule_file': {schedule_file_path}")
+
     # Gets experiments parameters
+
+    schedule_module = ".".join(schedule_file.split('/')).strip('.py')
 
     if search_type == 'grid':
 
-        VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args = extract_schedule_grid()
+        VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args = extract_schedule_grid(schedule_module)
 
     elif search_type == 'random':
 
-        param_samples, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args = extract_schedule_random()
+        param_samples, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args = extract_schedule_random(schedule_module)
 
     else:
         raise NotImplementedError
@@ -186,10 +226,10 @@ def prepare_schedule(desc, add_to_folder, search_type, ask_for_validation, resam
     n_combinations = len(agent_task_combinations)
 
     experiments = [experiments]
-    if search_type=='random':
+    if search_type == 'random':
         param_samples = [param_samples]
 
-    if search_type=='random' and resample:
+    if search_type == 'random' and resample:
         assert not add_to_folder
         for i in range(n_combinations - 1):
             param_sa, _, _, _, expe, varied_pa, get_run_args = extract_schedule_random()
