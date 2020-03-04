@@ -18,7 +18,7 @@ def get_args():
 
     parser.add_argument('--storage_name', type=str, required=True)
     parser.add_argument('--run_over_tasks', type=parse_bool, default=False,
-                        help="If true, subprocesses will look for unhatched seeds in all storage_dir"
+                        help="If true, subprocesses will look for unhatched seeds in all storage_dir "
                              "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
     parser.add_argument('--n_retrain_seeds', type=int, default=10)
     parser.add_argument('--root_dir', type=str, default=None)
