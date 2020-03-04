@@ -89,8 +89,8 @@ def create_comparative_figure(storage_dir, logger):
     else:
         experiment_groups = {"all": {}}
         for group_key, properties in experiment_groups.items():
-            i_max = int(np.ceil(np.sqrt(len(all_seeds_dir))))
-            j_max = i_max
+            i_max = len(sorted_experiments)  # each experiment is on a different row
+            j_max = len(all_seeds_dir) // i_max  # each seed is on a different column
             ax_array_dim = 2
             properties['ax_array_shape'] = (i_max, j_max)
             properties['ax_array_dim'] = ax_array_dim
