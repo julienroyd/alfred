@@ -15,8 +15,11 @@ TASK_NAMES = ['MNIST']
 N_SEEDS = 3
 SEEDS = [1 + x for x in range(N_SEEDS)]
 
+# (4) Enter the number of experiments to sample
 
-# (4) Hyper-parameters. For each hyperparam, enter the function that you want the random-search to sample from.
+N_EXPERIMENTS = 50
+
+# (5) Hyper-parameters. For each hyperparam, enter the function that you want the random-search to sample from.
 #     For each experiment, a set of hyperparameters will be sampled using these functions
 
 # Examples:

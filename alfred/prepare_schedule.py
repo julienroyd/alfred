@@ -24,7 +24,6 @@ def get_prepare_schedule_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--desc', type=str, default=None)
     parser.add_argument('--search_type', type=str, choices=['grid', 'random'], required=True)
-    parser.add_argument('--n_experiments', type=int, default=50)
     parser.add_argument('--root_dir', default=None, type=str)
     parser.add_argument('--add_to_folder', type=str, default=None)
     parser.add_argument('--resample', type=parse_bool, default=True,
@@ -65,9 +64,9 @@ def extract_schedule_grid():
     return VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args
 
 
-def extract_schedule_random(n_experiments):
+def extract_schedule_random():
     try:
-        from schedules.random_schedule import sample_experiment, ALG_NAMES, TASK_NAMES, SEEDS, get_run_args
+        from schedules.random_schedule import sample_experiment, ALG_NAMES, TASK_NAMES, SEEDS, N_EXPERIMENTS, get_run_args
     except ImportError as e:
         raise ImportError(
             f"alfred.prepare_schedule assumes the following structure (see alfred/schedules_examples):"
@@ -77,7 +76,7 @@ def extract_schedule_random(n_experiments):
 
     # Samples all experiments' hyperparameters
 
-    experiments = [sample_experiment().items() for _ in range(n_experiments)]
+    experiments = [sample_experiment().items() for _ in range(N_EXPERIMENTS)]
 
     # Convert to list of dicts
 
@@ -144,7 +143,7 @@ def create_experiment_dir(storage_name_id, config, config_unique_dict, SEEDS, ro
     return dir_tree
 
 
-def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_validation, resample, logger, root_dir):
+def prepare_schedule(desc, add_to_folder, search_type, ask_for_validation, resample, logger, root_dir):
     # Gets experiments parameters
 
     if search_type == 'grid':
@@ -153,7 +152,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
 
     elif search_type == 'random':
 
-        param_samples, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args = extract_schedule_random(n_experiments)
+        param_samples, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args = extract_schedule_random()
 
     else:
         raise NotImplementedError
@@ -193,7 +192,7 @@ def prepare_schedule(desc, add_to_folder, search_type, n_experiments, ask_for_va
     if search_type=='random' and resample:
         assert not add_to_folder
         for i in range(n_combinations - 1):
-            param_sa, _, _, _, expe, varied_pa, get_run_args = extract_schedule_random(n_experiments)
+            param_sa, _, _, _, expe, varied_pa, get_run_args = extract_schedule_random()
             experiments.append(expe)
             param_samples.append(param_sa)
 
