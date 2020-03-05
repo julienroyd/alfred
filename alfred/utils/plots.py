@@ -47,7 +47,7 @@ def bar_chart(ax, scores, err_up=None, err_down=None, capsize=10., colors=None,
 
 def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, markevery=None, labels=None,
                 xlabel="", ylabel="", axis_font_size=22, tick_font_size=18, title="", title_font_size=24,
-                fill=None, alpha_fill=0.1, smooth=False, add_legend=True, legend_underneath=False,
+                fill_up=None, fill_down=None, alpha_fill=0.1, smooth=False, add_legend=True, legend_underneath=False,
                 legend_font_size=20, legend_pos=(-0.5, -0.2)):
     if xs is None:
         xs = [range(len(y)) for y in ys]
@@ -70,9 +70,9 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
 
         # Adds filling around curve (central tendency)
 
-        if fill is not None:
+        if fill_up is not None and fill_down is not None:
             ax.plot(x, y, color=colors[i], label=labels[i])
-            ax.fill_between(x, y - fill[i], y + fill[i], color=colors[i], alpha=alpha_fill)
+            ax.fill_between(x, y - fill_down[i], y + fill_up[i], color=colors[i], alpha=alpha_fill)
 
         # Smooth curve using running average
 

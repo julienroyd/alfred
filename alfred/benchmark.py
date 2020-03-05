@@ -3,6 +3,7 @@ from alfred.utils.misc import create_logger
 from alfred.utils.directory_tree import DirectoryTree, get_root
 from alfred.utils.recorder import Recorder
 from alfred.utils.plots import create_fig, bar_chart, plot_curves, plot_vertical_densities
+from alfred.utils.stats import get_95_confidence_interval_of_sequence, get_95_confidence_interval
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -30,6 +31,7 @@ def get_benchmark_args():
 
     parser.add_argument('--x_metric', default="episode", type=str)
     parser.add_argument('--y_metric', default="eval_return", type=str)
+    parser.add_argument('--y_error_bars', default="bootstrapped_CI", choices=["bootstrapped_CI", "stderr", "10th_quantile"])
 
     parser.add_argument('--re_run_if_exists', type=parse_bool, default=False,
                         help="Whether to re-compute seed_scores if 'seed_scores.pkl' already exists")
@@ -176,8 +178,8 @@ def _compute_seed_scores(storage_dir, performance_metric, performance_aggregatio
     save_dict_to_json(scores_info, filename=str(storage_dir / save_dir / f"{save_dir}_seed_scores_info.json"))
 
 
-def _make_benchmark_performance_figure(storage_dirs, save_dir, logger, normalize_with_first_model=True,
-                                       sort_bars=False, std_error=True, quantile=0.10):
+def _make_benchmark_performance_figure(storage_dirs, save_dir, y_error_bars, logger, normalize_with_first_model=True,
+                                       sort_bars=False):
     # Initialize containers
 
     scores_means = OrderedDict()
@@ -241,22 +243,37 @@ def _make_benchmark_performance_figure(storage_dirs, save_dir, logger, normalize
                 scores_err_up[outer_key] = OrderedDict()
                 scores_err_down[outer_key] = OrderedDict()
 
-            scores_means[outer_key][inner_key] = np.mean(
-                scores[outer_key][inner_key] / (reference_means[inner_key] + 1e-8))
+            if y_error_bars == "stderr":
+                scores_means[outer_key][inner_key] = np.mean(
+                    scores[outer_key][inner_key] / (reference_means[inner_key] + 1e-8))
 
-            if std_error:
                 scores_err_down[outer_key][inner_key] = np.std(
                     scores[outer_key][inner_key] / (reference_means[inner_key] + 1e-8)) / len(
                     scores[outer_key][inner_key]) ** 0.5
                 scores_err_up[outer_key][inner_key] = scores_err_down[outer_key][inner_key]
 
-            else:
+            elif y_error_bars == "10th_quantiles":
+                scores_means[outer_key][inner_key] = np.mean(
+                    scores[outer_key][inner_key] / (reference_means[inner_key] + 1e-8))
+
+                quantile = 0.10
                 scores_err_down[outer_key][inner_key] = np.abs(
                     np.quantile(a=scores[outer_key][inner_key] / (reference_means[inner_key] + 1e-8), q=0. + quantile) \
                     - scores_means[outer_key][inner_key])
                 scores_err_up[outer_key][inner_key] = np.abs(
                     np.quantile(a=scores[outer_key][inner_key] / (reference_means[inner_key] + 1e-8), q=1. - quantile) \
                     - scores_means[outer_key][inner_key])
+
+            elif y_error_bars == "bootstrapped_CI":
+                scores_samples = scores[outer_key][inner_key] / (reference_means[inner_key] + 1e-8)
+
+                mean, err_up, err_down = get_95_confidence_interval(samples=scores_samples, method=y_error_bars)
+                scores_means[outer_key][inner_key] = mean
+                scores_err_up[outer_key][inner_key] = err_up
+                scores_err_down[outer_key][inner_key] = err_down
+
+            else:
+                raise NotImplementedError
 
     # Creates the graph
 
@@ -372,11 +389,12 @@ def _gather_experiments_training_curves(storage_dir, graph_key, curve_key, logge
     return x_data, y_data
 
 
-def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, storage_dirs, save_dir, logger, n_labels=np.inf, visuals_file=None):
+def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_bars, storage_dirs, save_dir, logger, n_labels=np.inf, visuals_file=None):
     # Initialize containers
 
     y_data_means = OrderedDict()
-    y_data_stds = OrderedDict()
+    y_data_err_up = OrderedDict()
+    y_data_err_down = OrderedDict()
     long_labels = OrderedDict()
     labels = OrderedDict()
     colors = OrderedDict()
@@ -384,7 +402,8 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, storage_
 
     for outer_key in y_data:
         y_data_means[outer_key] = OrderedDict()
-        y_data_stds[outer_key] = OrderedDict()
+        y_data_err_up[outer_key] = OrderedDict()
+        y_data_err_down[outer_key] = OrderedDict()
 
     # Initialize figure
 
@@ -413,8 +432,22 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, storage_
         for inner_key in y_data[outer_key].keys():
             x_data[outer_key][inner_key] = x_data[outer_key][inner_key][0]  # assumes all x_data are the same
 
-            y_data_means[outer_key][inner_key] = np.stack(y_data[outer_key][inner_key], axis=-1).mean(-1)
-            y_data_stds[outer_key][inner_key] = np.stack(y_data[outer_key][inner_key], axis=-1).std(-1)
+            if y_error_bars == "stderr":
+                y_data_means[outer_key][inner_key] = np.stack(y_data[outer_key][inner_key], axis=-1).mean(-1)
+                y_data_err_up[outer_key][inner_key] = np.stack(y_data[outer_key][inner_key], axis=-1).std(-1) \
+                                                      / len(y_data_means[outer_key][inner_key]) ** 0.5
+                y_data_err_down = y_data_err_up
+
+            elif y_error_bars == "bootstrapped_CI":
+                y_data_samples = np.stack(y_data[outer_key][inner_key], axis=-1)  # dim=0 is accross time (n_time_steps, n_samples)
+                mean, err_up, err_down = get_95_confidence_interval_of_sequence(list_of_samples=y_data_samples,
+                                                                                method=y_error_bars)
+                y_data_means[outer_key][inner_key] = mean
+                y_data_err_up[outer_key][inner_key] = err_up
+                y_data_err_down[outer_key][inner_key] = err_down
+
+            else:
+                raise NotImplementedError
 
         long_labels[outer_key] = list(y_data_means[outer_key].keys())
 
@@ -475,8 +508,9 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, storage_
 
         plot_curves(current_ax,
                     xs=list(x_data[outer_key].values()),
-                    ys=list(list(y_data_means[outer_key].values())),
-                    fill=list(list(y_data_stds[outer_key].values())),
+                    ys=list(y_data_means[outer_key].values()),
+                    fill_up=list(y_data_err_up[outer_key].values()),
+                    fill_down=list(y_data_err_down[outer_key].values()),
                     labels=labels[outer_key],
                     colors=colors[outer_key],
                     markers=markers[outer_key],
@@ -620,7 +654,7 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, make_box_plot, y
 
 # benchmark interface ---------------------------------------------------------------------------------------------
 
-def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric, visuals_file,
+def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric, y_error_bars, visuals_file,
                    performance_metric, performance_aggregation, make_performance_chart=True, make_learning_plots=True):
     """
     compare_models compare several storage_dirs
@@ -652,6 +686,7 @@ def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_di
                                         y_data=y_data,
                                         x_metric=x_metric,
                                         y_metric=y_metric,
+                                        y_error_bars=y_error_bars,
                                         storage_dirs=storage_dirs,
                                         n_labels=np.inf,
                                         save_dir="benchmark",
@@ -681,14 +716,13 @@ def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_di
                                            logger=logger,
                                            normalize_with_first_model=True,
                                            sort_bars=False,
-                                           std_error=True,
-                                           quantile=0.10,
+                                           y_error_bars=y_error_bars,
                                            save_dir="benchmark")
 
     return
 
 
-def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric,
+def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric, y_error_bars,
                      performance_metric, performance_aggregation, make_performance_chart=True,
                      make_learning_plots=True, visuals_file=None):
     """
@@ -713,6 +747,7 @@ def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_d
                                         y_data=y_data,
                                         x_metric=x_metric,
                                         y_metric=y_metric,
+                                        y_error_bars=y_error_bars,
                                         storage_dirs=[storage_dir],
                                         n_labels=10,
                                         save_dir="summary",
@@ -737,8 +772,7 @@ def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_d
                                                                logger=logger,
                                                                normalize_with_first_model=False,
                                                                sort_bars=True,
-                                                               quantile=0.10,
-                                                               std_error=True,
+                                                               y_error_bars=y_error_bars,
                                                                save_dir="summary")
 
         best_experiment_num = sorted_inner_keys[0]
@@ -749,7 +783,7 @@ def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_d
     return
 
 
-def compare_searches(storage_names, visuals_file, re_run_if_exists, logger, root_dir):
+def compare_searches(storage_names, visuals_file, re_run_if_exists, y_error_bars, logger, root_dir):
     """
     compare_searches compare several storage_dirs
     """
@@ -768,6 +802,7 @@ def compare_searches(storage_names, visuals_file, re_run_if_exists, logger, root
                              n_eval_runs=None,
                              x_metric="episode",
                              y_metric="eval_return",
+                             y_error_bars="y_error_bars",
                              performance_metric="avg_eval_return",
                              performance_aggregation="last",
                              re_run_if_exists=re_run_if_exists,
@@ -824,6 +859,7 @@ if __name__ == '__main__':
         compare_models(storage_names=benchmark_args.storage_names,
                        x_metric="episode",
                        y_metric="eval_return",
+                       y_error_bars=benchmark_args.y_error_bars,
                        visuals_file=visuals_file,
                        n_eval_runs=benchmark_args.n_eval_runs,
                        performance_metric=benchmark_args.performance_metric,
@@ -836,6 +872,7 @@ if __name__ == '__main__':
 
     elif benchmark_args.benchmark_type == "compare_searches":
         compare_searches(storage_names=benchmark_args.storage_names,
+                         y_error_bars=benchmark_args.y_error_bars,
                          visuals_file=visuals_file,
                          re_run_if_exists=benchmark_args.re_run_if_exists,
                          logger=logger,

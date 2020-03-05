@@ -177,6 +177,7 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
                             summarize_search(storage_name=storage_dir.name,
                                              x_metric="episode",
                                              y_metric="eval_return",
+                                             y_error_bars="bootstrapped_CI",
                                              n_eval_runs=None,
                                              performance_metric="avg_eval_return",
                                              performance_aggregation="last",
