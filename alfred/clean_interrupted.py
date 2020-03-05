@@ -1,5 +1,5 @@
 from alfred.utils.directory_tree import *
-from alfred.utils.misc import create_logger
+from alfred.utils.misc import create_logger, select_storage_dirs
 from alfred.utils.config import parse_bool
 
 import argparse
@@ -9,25 +9,34 @@ import shutil
 
 def get_clean_interrupted_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--storage_name', type=str, required=True)
-    parser.add_argument('--clean_crashes', type=parse_bool, default=False)
-    parser.add_argument('--ask_for_validation', type=parse_bool, default=True)
+
+    parser.add_argument('--from_file', type=str, default=None,
+                        help="Path containing all the storage_names to launch")
+
+    parser.add_argument('--storage_name', type=str, default=None)
     parser.add_argument('--clean_over_tasks', type=parse_bool, default=False,
                         help="If true, clean_interrupted will look for interrupted seeds in all storage_dir"
                              "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
+
+    parser.add_argument('--clean_crashes', type=parse_bool, default=False)
+    parser.add_argument('--ask_for_validation', type=parse_bool, default=True)
+
     parser.add_argument('--root_dir', default=None, type=str)
     return parser.parse_args()
 
 
-def clean_interrupted(storage_name, clean_crashes, clean_over_tasks, ask_for_validation, logger, root_dir):
+def clean_interrupted(from_file, storage_name, clean_crashes, clean_over_tasks, ask_for_validation, logger, root_dir):
+
+    if from_file is not None:
+        assert storage_name is None, "If launching --from_file, no storage_name should be provided"
+        assert clean_over_tasks is False, "--clean_over_tasks is not allowed when running --from_file"
+
+    if storage_name is not None or clean_over_tasks is not False:
+        assert from_file is None, "Cannot launch --from_file if --storage_name or --clean_over_tasks is defined"
+
     # Select storage_dirs to run over
 
-    storage_dir = get_root(root_dir) / storage_name
-
-    if clean_over_tasks:
-        storage_dirs = get_storage_dirs_across_tasks(storage_dir, root_dir=root_dir)
-    else:
-        storage_dirs = [storage_dir]
+    storage_dirs = select_storage_dirs(from_file, storage_name, clean_over_tasks, root_dir)
 
     # For all storage_dirs...
 
