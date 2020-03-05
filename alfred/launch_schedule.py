@@ -26,7 +26,7 @@ from tqdm import tqdm
 
 from alfred.utils.config import load_config_from_json, parse_bool
 from alfred.utils.directory_tree import *
-from alfred.utils.misc import create_logger, create_new_filehandler
+from alfred.utils.misc import create_logger, create_new_filehandler, select_storage_dirs
 from alfred.make_comparative_plots import create_comparative_figure
 from alfred.clean_interrupted import clean_interrupted
 from alfred.benchmark import summarize_search
@@ -34,16 +34,24 @@ from alfred.benchmark import summarize_search
 
 def get_launch_schedule_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--storage_name', type=str, required=True)
+
+    parser.add_argument('--from_file', type=str, default=None,
+                        help="Path containing all the storage_names to launch")
+
+    parser.add_argument('--storage_name', type=str, default=None,
+                        help="Single storage_name to launch (NULL if --from_file is provided)")
+    parser.add_argument('--run_over_tasks', type=parse_bool, default=False,
+                        help="If true, subprocesses will look for unhatched seeds in all storage_dir "
+                             "that have the same hashes, 'alg_name', 'desc' but different 'task_name' "
+                             "as the provided 'storage_name' (NULL if --from_file is provided)")
+
     parser.add_argument('--n_processes', type=int, default=1)
     parser.add_argument('--n_experiments_per_proc', type=int, default=np.inf)
     parser.add_argument('--use_pbar', type=parse_bool, default=False)
     parser.add_argument('--check_hash', type=parse_bool, default=True)
-    parser.add_argument('--run_over_tasks', type=parse_bool, default=False,
-                        help="If true, subprocesses will look for unhatched seeds in all storage_dir"
-                             "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
     parser.add_argument('--run_clean_interrupted', type=parse_bool, default=False,
                         help="Will clean mysteriously stopped seeds to be re-runned, but not crashed experiments")
+
     parser.add_argument('--root_dir', default=None, type=str)
 
     return parser.parse_args()
@@ -192,13 +200,49 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
     return call_i
 
 
-def launch_schedule(storage_name, n_processes, n_experiments_per_proc, use_pbar, check_hash, run_over_tasks,
+def launch_schedule(from_file, storage_name, run_over_tasks, n_processes, n_experiments_per_proc, use_pbar, check_hash,
                     run_clean_interrupted, root_dir):
+
+    if from_file is not None:
+        assert storage_name is None, "If launching --from_file, no storage_name should be provided"
+        assert run_over_tasks is False, "--run_over_tasks is not allowed when running --from_file"
+
+    if storage_name is not None or run_over_tasks is not False:
+        assert from_file is None, "Cannot launch --from_file if --storage_name or --run_over_tasks is defined"
+
+    # Select storage_dirs to run over
+
+    storage_dirs = select_storage_dirs(from_file, storage_name, run_over_tasks, root_dir)
+
     # Creates logger
 
-    storage_dir = get_root(root_dir) / storage_name
-    master_logger = create_logger(name=f'RUN_SCHEDULE - MASTER', loglevel=logging.INFO,
-                                  logfile=storage_dir / 'run_schedule_logger.out', streamHandle=True)
+    master_logger = create_logger(name=f'RUN_SCHEDULE - MASTER', loglevel=logging.INFO, logfile=None, streamHandle=True)
+
+    for storage_dir in storage_dirs:
+        file_handler = create_new_filehandler(master_logger.name, logfile=storage_dir / 'run_schedule_logger.out')
+        master_logger.addHandler(file_handler)
+
+    for storage_dir in storage_dirs:
+
+        master_logger.info("Storage Directories to be launched:")
+        for storage_dir in storage_dirs:
+            master_logger.info(storage_dir)
+
+        # Checks if code hash matches the folder to be run_schedule
+
+        if check_hash:
+
+            current_git_hashes = {}
+            for name, repo in DirectoryTree.git_repos_to_track.items():
+                current_git_hashes[name] = get_git_hash(path=repo)
+
+            _, storage_name_git_hashes, _, _, _ = DirectoryTree.extract_info_from_storage_name(storage_dir.name)
+            storage_name_git_hash_list = storage_name_git_hashes.split("-")
+
+            for i, (name, hash) in enumerate(current_git_hashes.items()):
+                if hash not in storage_name_git_hash_list:
+                    raise ValueError(f"Repository '{name}' hash is: {hash}. "
+                                     f"You are running a storage_dir with '{name}' hash: {storage_name_git_hash_list[i]}")
 
     # Log some info
 
@@ -212,35 +256,6 @@ def launch_schedule(storage_name, n_processes, n_experiments_per_proc, use_pbar,
                        f"\nrun_over_tasks={run_over_tasks}"
                        f"\nroot={get_root(root_dir)}"
                        f"\n")
-
-    # Checks if code hash matches the folder to be run_schedule
-
-    if check_hash:
-
-        current_git_hashes = {}
-        for name, repo in DirectoryTree.git_repos_to_track.items():
-            current_git_hashes[name] = get_git_hash(path=repo)
-
-        _, storage_name_git_hashes, _, _, _ = DirectoryTree.extract_info_from_storage_name(storage_name)
-        storage_name_git_hash_list = storage_name_git_hashes.split("-")
-
-        for i, (name, hash) in enumerate(current_git_hashes.items()):
-            if hash not in storage_name_git_hash_list:
-                raise ValueError(f"Repository '{name}' hash is: {hash}. "
-                                 f"You are running a storage_dir with '{name}' hash: {storage_name_git_hash_list[i]}")
-
-    # Select storage_dirs to run over
-
-    storage_dir = get_root(root_dir) / storage_name
-
-    if run_over_tasks:
-        storage_dirs = get_storage_dirs_across_tasks(storage_dir, root_dir=root_dir)
-    else:
-        storage_dirs = [storage_dir]
-
-    master_logger.info("Storage Directories to be runned:")
-    for storage_dir in storage_dirs:
-        master_logger.info(storage_dir)
 
     # Clean the storage_dirs if asked to
 

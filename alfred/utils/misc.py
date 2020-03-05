@@ -5,7 +5,7 @@ import re
 from tqdm import tqdm
 
 from alfred.utils.config import config_to_str
-from alfred.utils.directory_tree import DirectoryTree
+from alfred.utils.directory_tree import DirectoryTree, get_root, get_storage_dirs_across_tasks
 
 
 def create_logger(name, loglevel, logfile=None, streamHandle=True):
@@ -88,3 +88,26 @@ def check_params_defined_twice(keys):
     for key in counted_keys.keys():
         if counted_keys[key] > 1:
             raise ValueError(f'Parameter "{key}" appears {counted_keys[key]} times in the schedule.')
+
+
+def select_storage_dirs(from_file, storage_name, over_tasks, root_dir):
+    if from_file is not None:
+        with open(from_file, "r") as f:
+            storage_names = f.readlines()
+        storage_names = [sto_name.strip('\n') for sto_name in storage_names]
+
+        storage_dirs = [get_root(root_dir) / sto_name for sto_name in storage_names]
+
+    elif storage_name is not None:
+
+        storage_dir = get_root(root_dir) / storage_name
+
+        if over_tasks:
+            storage_dirs = get_storage_dirs_across_tasks(storage_dir, root_dir=root_dir)
+        else:
+            storage_dirs = [storage_dir]
+
+    else:
+        raise NotImplementedError("storage_dirs to operate over must be specified either by --from_file or --storage_name")
+
+    return storage_dirs
