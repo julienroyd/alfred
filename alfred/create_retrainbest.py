@@ -2,6 +2,7 @@ import logging
 import traceback
 import argparse
 from pathlib import Path
+from importlib import import_module
 
 from alfred.utils.misc import create_logger, select_storage_dirs
 from alfred.utils.directory_tree import DirectoryTree, get_root
@@ -20,7 +21,7 @@ def get_args():
     parser.add_argument('--from_file', type=str, default=None,
                         help="Path containing all the storage_names for which to create retrainBests")
 
-    parser.add_argument('--storage_name', type=str, required=True)
+    parser.add_argument('--storage_name', type=str, default=None)
     parser.add_argument('--over_tasks', type=parse_bool, default=False,
                         help="If true, subprocesses will create retrainBests for all storage_dir "
                              "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
@@ -39,6 +40,13 @@ def create_retrain_best(from_file, storage_name, over_tasks, n_retrain_seeds, ro
     # Select storage_dirs to run over
 
     storage_dirs = select_storage_dirs(from_file, storage_name, over_tasks, root_dir)
+
+    # Imports schedule file to have same settings for DirectoryTree.git_repos_to_track
+
+    if from_file:
+        schedule_file = str([path for path in Path(from_file).parent.iterdir() if 'schedule' in path.name and path.name.endswith('.py')][0])
+        schedule_module = ".".join(schedule_file.split('/')).strip('.py')
+        schedule = import_module(schedule_module)
 
     # Creates retrainBest directories
 
