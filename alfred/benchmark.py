@@ -21,11 +21,15 @@ sns.set()
 def get_benchmark_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--benchmark_type', type=str, choices=['compare_models', 'compare_searches'], required=True)
+
+    parser.add_argument('--from_file', type=str, default=None)
     parser.add_argument('--storage_names', type=str, nargs='+', default=None)
+
     parser.add_argument('--x_metric', default="episode", type=str)
     parser.add_argument('--y_metric', default="eval_return", type=str)
-    parser.add_argument('--re_run_if_exists', type=parse_bool, default=False)
-    parser.add_argument('--root_dir', default="./storage", type=str)
+
+    parser.add_argument('--re_run_if_exists', type=parse_bool, default=False,
+                        help="Whether to re-compute seed_scores if 'performance_data.pkl' already exists")
     parser.add_argument('--n_eval_runs', type=int, default=100,
                         help="Only used if performance_metric=='evaluation_runs'")
     parser.add_argument('--performance_metric', type=str, default='avg_eval_return',
@@ -35,6 +39,8 @@ def get_benchmark_args():
     parser.add_argument('--performance_aggregation', type=str, choices=['min', 'max', 'avg', 'last'], default='last',
                         help="How gathered 'performance_metric' should be aggregated to quantify performance of seed_dir")
 
+    parser.add_argument('--root_dir', default="./storage", type=str)
+
     return parser.parse_args()
 
 
@@ -42,6 +48,7 @@ def get_benchmark_args():
 
 def _compute_seed_scores(storage_dir, performance_metric, performance_aggregation, group_key, bar_key,
                          re_run_if_exists, save_dir, logger, root_dir, n_eval_runs=None):
+
     if (storage_dir / save_dir / f"{save_dir}_performance_data.pkl").exists() and not re_run_if_exists:
         logger.info(f" SKIPPING {storage_dir} - {save_dir}_performance.pkl already exists")
         return
@@ -666,13 +673,23 @@ def compare_searches(storage_names, re_run_if_exists, logger, root_dir):
 if __name__ == '__main__':
     benchmark_args = get_benchmark_args()
     logger = create_logger(name="BENCHMARK - MAIN", loglevel=logging.DEBUG)
-    if benchmark_args.storage_names is None:
-        if benchmark_args.benchmark_type == 'compare_models':
-            benchmark_args.storage_names = official_benchmark_lists.retrains_list
-        elif benchmark_args.benchmark_type == 'compare_searches':
-            benchmark_args.storage_names = official_benchmark_lists.searches_list
-        else:
-            raise ValueError
+
+    # Checks how the list of storage_names to act on is provided
+
+    if benchmark_args.storage_names is None and benchmark_args.from_file is None:
+        raise ValueError("One of --storage_names or --from_file must be defined for benchmark.py to know what to work on")
+
+    if benchmark_args.storage_names is not None:
+        assert benchmark_args.from_file is None, "If --storage_names is defined, from_file must be None."
+
+    if benchmark_args.from_file is not None:
+        assert benchmark_args.storage_names is None, "If --from_file is defined, storage_names must be None."
+
+        with open(benchmark_args.from_file, "r") as f:
+            storage_names = f.readlines()
+        benchmark_args.storage_names = [sto_name.strip('\n') for sto_name in storage_names]
+
+    # Launches the requested benchmark type (comparing searches [vertical densities] or comparing final models [learning curves])
 
     if benchmark_args.benchmark_type == "compare_models":
         compare_models(storage_names=benchmark_args.storage_names,
