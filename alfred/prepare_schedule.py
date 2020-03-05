@@ -362,7 +362,8 @@ def prepare_schedule(desc, schedule_file, root_dir, add_to_folder, resample, log
             if not hasattr(ax, '__iter__'):
                 ax = [ax]
 
-            plot_sampled_hyperparams(ax, param_samples[i])
+            plot_sampled_hyperparams(ax, param_samples[i],
+                                     log_params=['lr', 'tau', 'initial_alpha', 'grad_clip_value', 'lamda1', 'lamda2'])
 
             j = 1
             while True:
