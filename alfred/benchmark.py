@@ -1,10 +1,3 @@
-# from evaluate import evaluate, get_evaluation_args  # TODO: deal with that
-# import official_benchmark_lists  # TODO: get rid of that
-
-# TODO: eventually, I should:
-# TODO:    1. create a file common.py that has some general functions used by both summaries (intra storage_dir) and benchmarks (across storage_dir's)
-# TODO:    2. separate 'summarise.py' and 'benchamark.py'. Only 'summarise.py' would be called at the end of run_schedule
-
 from alfred.utils.config import parse_bool, load_dict_from_json, save_dict_to_json
 from alfred.utils.misc import create_logger
 from alfred.utils.directory_tree import DirectoryTree, get_root
@@ -100,6 +93,17 @@ def _compute_seed_scores(storage_dir, performance_metric, performance_aggregatio
             if performance_metric == 'evaluation_runs':
 
                 assert n_eval_runs is not None
+
+                try:
+                    from evaluate import evaluate, get_evaluation_args
+                except ImportError as e:
+                    raise ImportError(
+                        f"{e}\nTo evaluate models based on --performance_metric='evaluation_runs' "
+                        f"alfred.benchmark assumes the following structure that the working directory contains "
+                        f"a file called evaluate.py containing two functions: "
+                        f"\n\t1. a function evaluate() that returns a score for each evaluation run"
+                        f"\n\t2. a function get_evaluation_args() that returns a Namespace of arguments for evaluate()"
+                    )
 
                 # Sets config for evaluation phase
 
@@ -504,6 +508,10 @@ def _make_vertical_densities_figure(storage_dirs, save_dir, logger):
 
 def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric,
                    performance_metric, performance_aggregation, make_performance_chart=True, make_learning_plots=True):
+    """
+    compare_models compare several storage_dirs
+    """
+
     assert type(storage_names) is list
 
     if make_learning_plots:
@@ -567,6 +575,10 @@ def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_di
 def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric,
                      performance_metric, performance_aggregation, make_performance_chart=True,
                      make_learning_plots=True):
+    """
+    Summaries act inside a single storage_dir
+    """
+
     assert type(storage_name) is str
 
     storage_dir = get_root(root_dir) / storage_name
@@ -620,6 +632,10 @@ def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_d
 
 
 def compare_searches(storage_names, re_run_if_exists, logger, root_dir):
+    """
+    compare_searches compare several storage_dirs
+    """
+
     assert type(storage_names) is list
 
     logger.debug(f'\n{"benchmark_vertical_densities".upper()}:')
