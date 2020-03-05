@@ -17,7 +17,7 @@ def get_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--storage_name', type=str, required=True)
-    parser.add_argument('--run_over_tasks', type=parse_bool, default=False,
+    parser.add_argument('--over_tasks', type=parse_bool, default=False,
                         help="If true, subprocesses will look for unhatched seeds in all storage_dir "
                              "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
     parser.add_argument('--n_retrain_seeds', type=int, default=10)
@@ -26,13 +26,13 @@ def get_args():
     return parser.parse_args()
 
 
-def create_retrain_best(storage_name, run_over_tasks, n_retrain_seeds, root_dir):
+def create_retrain_best(storage_name, over_tasks, n_retrain_seeds, root_dir):
     logger = create_logger(name="CREATE_RETRAIN", loglevel=logging.INFO)
     logger.info("\nCREATING retrainBest directories")
 
     storage_dir = get_root(root_dir) / storage_name
 
-    if run_over_tasks:
+    if over_tasks:
         storage_dirs = get_storage_dirs_across_tasks(storage_dir, root_dir)
     else:
         storage_dirs = [storage_dir]

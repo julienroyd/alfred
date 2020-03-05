@@ -92,6 +92,13 @@ def check_params_defined_twice(keys):
 
 def select_storage_dirs(from_file, storage_name, over_tasks, root_dir):
     if from_file is not None:
+        assert storage_name is None, "If launching --from_file, no storage_name should be provided"
+        assert over_tasks is False, "--over_tasks is not allowed when running --from_file"
+
+    if storage_name is not None or over_tasks is not False:
+        assert from_file is None, "Cannot launch --from_file if --storage_name or --over_tasks is defined"
+
+    if from_file is not None:
         with open(from_file, "r") as f:
             storage_names = f.readlines()
         storage_names = [sto_name.strip('\n') for sto_name in storage_names]

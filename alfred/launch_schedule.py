@@ -40,7 +40,7 @@ def get_launch_schedule_args():
 
     parser.add_argument('--storage_name', type=str, default=None,
                         help="Single storage_name to launch (NULL if --from_file is provided)")
-    parser.add_argument('--run_over_tasks', type=parse_bool, default=False,
+    parser.add_argument('--over_tasks', type=parse_bool, default=False,
                         help="If true, subprocesses will look for unhatched seeds in all storage_dir "
                              "that have the same hashes, 'alg_name', 'desc' but different 'task_name' "
                              "as the provided 'storage_name' (NULL if --from_file is provided)")
@@ -200,19 +200,12 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
     return call_i
 
 
-def launch_schedule(from_file, storage_name, run_over_tasks, n_processes, n_experiments_per_proc, use_pbar, check_hash,
+def launch_schedule(from_file, storage_name, over_tasks, n_processes, n_experiments_per_proc, use_pbar, check_hash,
                     run_clean_interrupted, root_dir):
-
-    if from_file is not None:
-        assert storage_name is None, "If launching --from_file, no storage_name should be provided"
-        assert run_over_tasks is False, "--run_over_tasks is not allowed when running --from_file"
-
-    if storage_name is not None or run_over_tasks is not False:
-        assert from_file is None, "Cannot launch --from_file if --storage_name or --run_over_tasks is defined"
 
     # Select storage_dirs to run over
 
-    storage_dirs = select_storage_dirs(from_file, storage_name, run_over_tasks, root_dir)
+    storage_dirs = select_storage_dirs(from_file, storage_name, over_tasks, root_dir)
 
     # Creates logger
 
@@ -253,7 +246,7 @@ def launch_schedule(from_file, storage_name, run_over_tasks, n_processes, n_expe
                        f"\nn_experiments_per_proc={n_experiments_per_proc}"
                        f"\nuse_pbar={use_pbar}"
                        f"\ncheck_hash={check_hash}"
-                       f"\nrun_over_tasks={run_over_tasks}"
+                       f"\nover_tasks={over_tasks}"
                        f"\nroot={get_root(root_dir)}"
                        f"\n")
 
@@ -263,7 +256,7 @@ def launch_schedule(from_file, storage_name, run_over_tasks, n_processes, n_expe
         for storage_dir in storage_dirs:
             clean_interrupted(storage_name=storage_dir.name,
                               clean_crashes=False,
-                              clean_over_tasks=False,
+                              over_tasks=False,
                               ask_for_validation=False,
                               logger=master_logger,
                               root_dir=root_dir)

@@ -14,7 +14,7 @@ def get_clean_interrupted_args():
                         help="Path containing all the storage_names to launch")
 
     parser.add_argument('--storage_name', type=str, default=None)
-    parser.add_argument('--clean_over_tasks', type=parse_bool, default=False,
+    parser.add_argument('--over_tasks', type=parse_bool, default=False,
                         help="If true, clean_interrupted will look for interrupted seeds in all storage_dir"
                              "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
 
@@ -25,18 +25,10 @@ def get_clean_interrupted_args():
     return parser.parse_args()
 
 
-def clean_interrupted(from_file, storage_name, clean_crashes, clean_over_tasks, ask_for_validation, logger, root_dir):
-
-    if from_file is not None:
-        assert storage_name is None, "If launching --from_file, no storage_name should be provided"
-        assert clean_over_tasks is False, "--clean_over_tasks is not allowed when running --from_file"
-
-    if storage_name is not None or clean_over_tasks is not False:
-        assert from_file is None, "Cannot launch --from_file if --storage_name or --clean_over_tasks is defined"
-
+def clean_interrupted(from_file, storage_name, clean_crashes, over_tasks, ask_for_validation, logger, root_dir):
     # Select storage_dirs to run over
 
-    storage_dirs = select_storage_dirs(from_file, storage_name, clean_over_tasks, root_dir)
+    storage_dirs = select_storage_dirs(from_file, storage_name, over_tasks, root_dir)
 
     # For all storage_dirs...
 
