@@ -11,7 +11,7 @@ def get_clean_interrupted_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--from_file', type=str, default=None,
-                        help="Path containing all the storage_names to launch")
+                        help="Path containing all the storage_names to clean")
 
     parser.add_argument('--storage_name', type=str, default=None)
     parser.add_argument('--over_tasks', type=parse_bool, default=False,
