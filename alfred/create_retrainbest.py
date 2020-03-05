@@ -1,6 +1,7 @@
 import logging
 import traceback
 import argparse
+from pathlib import Path
 
 from alfred.utils.misc import create_logger, select_storage_dirs
 from alfred.utils.directory_tree import DirectoryTree, get_root
@@ -42,10 +43,10 @@ def create_retrain_best(from_file, storage_name, over_tasks, n_retrain_seeds, ro
     # Creates retrainBest directories
 
     retrainBest_storage_dirs = []
+    new_retrainBest_storage_dirs = []
     for storage_dir in storage_dirs:
 
         try:
-
             # Checks if a retrainBest directory already exists for this search
 
             search_storage_id = storage_dir.name.split('_')[0]
@@ -113,6 +114,7 @@ def create_retrain_best(from_file, storage_name, over_tasks, n_retrain_seeds, ro
                                                  git_hashes=DirectoryTree.get_git_hashes())
 
                 retrainBest_storage_dirs.append(dir_tree.storage_dir)
+                new_retrainBest_storage_dirs.append(dir_tree.storage_dir)
 
                 logger.info(f"New retrainBest:\n\n"
                             f"\t{storage_dir.name} -> {dir_tree.storage_dir.name}")
@@ -120,6 +122,13 @@ def create_retrain_best(from_file, storage_name, over_tasks, n_retrain_seeds, ro
         except Exception as e:
             logger.info(f"Could not create retrainBest-storage_dir {storage_dir}")
             logger.info(f"\n\n{e}\n{traceback.format_exc()}")
+
+    # Saving the list of created storage_dirs in a text file located with the provided schedule_file
+
+    schedule_name = Path(from_file).parent.stem
+    with open(Path(from_file).parent / f"list_retrains_{schedule_name}.txt", "a+") as f:
+        for storage_dir in new_retrainBest_storage_dirs:
+            f.write(f"{storage_dir.name}\n")
 
     return retrainBest_storage_dirs
 
