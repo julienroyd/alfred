@@ -39,12 +39,12 @@ def get_prepare_schedule_args():
 
 def extract_schedule_grid(schedule_module):
     try:
-        grid_schedule = import_module(schedule_module)
-        VARIATIONS = grid_schedule.VARIATIONS
-        ALG_NAMES = grid_schedule.ALG_NAMES
-        TASK_NAMES = grid_schedule.TASK_NAMES
-        SEEDS = grid_schedule.SEEDS
-        get_run_args = grid_schedule.get_run_args
+        schedule = import_module(schedule_module)
+        VARIATIONS = schedule.VARIATIONS
+        ALG_NAMES = schedule.ALG_NAMES
+        TASK_NAMES = schedule.TASK_NAMES
+        SEEDS = schedule.SEEDS
+        get_run_args = schedule.get_run_args
     except ImportError as e:
         raise ImportError(
             f"{e}\nalfred.prepare_schedule assumes the following structure:"
@@ -72,18 +72,18 @@ def extract_schedule_grid(schedule_module):
 
     varied_params = [k for k in VARIATIONS.keys() if len(VARIATIONS[k]) > 1]
 
-    return VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args
+    return VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args, schedule
 
 
 def extract_schedule_random(schedule_module):
     try:
-        random_schedule = import_module(schedule_module)
-        sample_experiment = random_schedule.sample_experiment
-        ALG_NAMES = random_schedule.ALG_NAMES
-        TASK_NAMES = random_schedule.TASK_NAMES
-        SEEDS = random_schedule.SEEDS
-        N_EXPERIMENTS = random_schedule.N_EXPERIMENTS
-        get_run_args = random_schedule.get_run_args
+        schedule = import_module(schedule_module)
+        sample_experiment = schedule.sample_experiment
+        ALG_NAMES = schedule.ALG_NAMES
+        TASK_NAMES = schedule.TASK_NAMES
+        SEEDS = schedule.SEEDS
+        N_EXPERIMENTS = schedule.N_EXPERIMENTS
+        get_run_args = schedule.get_run_args
     except ImportError as e:
         raise ImportError(
             f"{e}\nalfred.prepare_schedule assumes the following structure:"
@@ -116,7 +116,7 @@ def extract_schedule_random(schedule_module):
         del param_samples[param_name]
     varied_params = list(param_samples.keys())
 
-    return param_samples, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args
+    return param_samples, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args, schedule
 
 
 def create_experiment_dir(storage_name_id, config, config_unique_dict, SEEDS, root_dir, git_hashes=None):
@@ -188,11 +188,11 @@ def prepare_schedule(desc, schedule_file, root_dir, add_to_folder, resample, log
 
     if search_type == 'grid':
 
-        VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args = extract_schedule_grid(schedule_module)
+        VARIATIONS, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args, schedule = extract_schedule_grid(schedule_module)
 
     elif search_type == 'random':
 
-        param_samples, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args = extract_schedule_random(schedule_module)
+        param_samples, ALG_NAMES, TASK_NAMES, SEEDS, experiments, varied_params, get_run_args, schedule = extract_schedule_random(schedule_module)
 
     else:
         raise NotImplementedError
@@ -290,6 +290,8 @@ def prepare_schedule(desc, schedule_file, root_dir, add_to_folder, resample, log
 
     # For each storage_dir to be created
 
+    all_storage_dirs = []
+
     for alg_task_i, (alg_name, task_name) in enumerate(agent_task_combinations):
 
         # Determines storing ID (if new storage_dir)
@@ -328,6 +330,8 @@ def prepare_schedule(desc, schedule_file, root_dir, add_to_folder, resample, log
             # Create the experiment directory
 
             dir_tree = create_experiment_dir(storage_name_id, config, config_unique_dict, SEEDS, root_dir, git_hashes)
+
+        all_storage_dirs.append(dir_tree.storage_dir)
 
         # Saves VARIATIONS in the storage directory
 
@@ -375,6 +379,13 @@ def prepare_schedule(desc, schedule_file, root_dir, add_to_folder, resample, log
 
         logger.info(f'Created directories '
                     f'{str(dir_tree.storage_dir)}/experiment{first_experiment_created}-{last_experiment_created}')
+
+    # Saving the list of created storage_dirs in a text file located with the provided schedule_file
+
+    schedule_name = Path(schedule.__file__).parent.stem
+    with open(Path(schedule.__file__).parent / f"list_searches_{schedule_name}.txt", "a+") as f:
+        for storage_dir in all_storage_dirs:
+            f.write(f"{storage_dir.name}\n")
 
     logger.info(f"\nEach of these experiments contain directories for the following seeds: {SEEDS}")
 
