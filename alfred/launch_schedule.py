@@ -151,7 +151,11 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
                     logger.info(f"{storage_dir.name}: MAKING COMPARATIVE PLOTS")
 
                     try:
-                        create_comparative_figure(storage_dir, logger=logger)
+                        create_comparative_figure(from_file=None,
+                                                  storage_name=storage_dir.name,
+                                                  over_tasks=False,
+                                                  root_dir=root_dir,
+                                                  logger=logger)
 
                     except Exception as e:
                         logger.info(f"{type(e)}: unable to plot comparative graphs"
@@ -215,11 +219,11 @@ def launch_schedule(from_file, storage_name, over_tasks, n_processes, n_experime
         file_handler = create_new_filehandler(master_logger.name, logfile=storage_dir / 'run_schedule_logger.out')
         master_logger.addHandler(file_handler)
 
+    master_logger.info("Storage Directories to be launched:")
     for storage_dir in storage_dirs:
+        master_logger.info(storage_dir)
 
-        master_logger.info("Storage Directories to be launched:")
-        for storage_dir in storage_dirs:
-            master_logger.info(storage_dir)
+    for storage_dir in storage_dirs:
 
         # Checks if code hash matches the folder to be run_schedule
 

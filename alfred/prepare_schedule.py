@@ -26,7 +26,7 @@ from alfred.utils.misc import create_logger
 
 def get_prepare_schedule_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--desc', type=str, default=None)
+    parser.add_argument('--desc', type=str, required=True)
     parser.add_argument('--schedule_file', type=str, required=True,
                         help="e.g. --schedule_file=schedules/search1/grid_schedule_search1.py")
     parser.add_argument('--root_dir', default=None, type=str)
@@ -232,7 +232,7 @@ def prepare_schedule(desc, schedule_file, root_dir, add_to_folder, resample, log
     if search_type == 'random' and resample:
         assert not add_to_folder
         for i in range(n_combinations - 1):
-            param_sa, _, _, _, expe, varied_pa, get_run_args = extract_schedule_random()
+            param_sa, _, _, _, expe, varied_pa, get_run_args, _ = extract_schedule_random(schedule_module)
             experiments.append(expe)
             param_samples.append(param_sa)
 
