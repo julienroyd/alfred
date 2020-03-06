@@ -1,6 +1,6 @@
 import logging
 import json
-import argparse
+from types import SimpleNamespace
 
 
 def parse_bool(bool_arg):
@@ -70,11 +70,10 @@ def load_config_from_json(filename):
         loaded_config_dict = json.load(f)
 
     # Creates a pointer to default NameSpace dict
-    config = argparse.ArgumentParser().parse_args(args="")
-    config_dict = vars(config)
+    config = SimpleNamespace()
 
     # Updates the default dict using the one loaded from the json file
-    config_dict.update(loaded_config_dict)
+    config.__dict__.update(loaded_config_dict)
 
     return config
 

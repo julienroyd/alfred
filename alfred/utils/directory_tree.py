@@ -1,27 +1,42 @@
 import os
 import subprocess
 from pathlib import Path
-import os.path as osp
 from collections import OrderedDict
 
+def get_root(root=None):
+    return Path(root) if root is not None else Path(DirectoryTree.default_root)
+
+
 class DirectoryTree(object):
-    root = Path("./storage")
+    """
+    DirectoryTree is meant to encapsulate the entire tree defined by a storage_dir
+    - the storage_dir is located at directory_tree.root/.
+    - a storage_dir contains one or multiple experiment_dir as well as some other folders
+      such as benchmark/ and summary/ that compare the performance across all experiments.
+    - an experiment_dir contains one or multiple seed_dir. All seed_dirs in an experiment_dir
+      share the same config.json except for the initialisation seed.
+    - a seed_dir contains the config.json needed to launch an experiment, as well as
+      the result data saved in recorders/.
+    """
+
+    default_root = './storage'
     git_repos_to_track = OrderedDict()
 
-    def __init__(self, alg_name, task_name, desc, seed,
-                 experiment_num=None, git_hashes=None, id=None):
+    def __init__(self, alg_name, task_name, desc, seed, experiment_num=None, git_hashes=None, id=None, root=None):
+        self.root = get_root(root)
 
         # Creates the root folder (if doesn't already exist)
 
-        os.makedirs(str(DirectoryTree.root), exist_ok=True)
+        os.makedirs(str(self.root), exist_ok=True)
 
         # Defines storage_name id
 
         if id is not None:
             id = id
         else:
-            git_name_short = get_git_name()[:2]
-            exst_ids_numbers = [int(folder.name.split('_')[0][2:]) for folder in DirectoryTree.root.iterdir()
+            n_letters = 2
+            git_name_short = get_git_name()[:n_letters]
+            exst_ids_numbers = [int(folder.name.split('_')[0][n_letters:]) for folder in self.root.iterdir()
                                 if folder.is_dir() and folder.name.split('_')[0].startswith(git_name_short)]
 
             if len(exst_ids_numbers) == 0:
@@ -29,7 +44,7 @@ class DirectoryTree(object):
             else:
                 id = f'{git_name_short}{(max(exst_ids_numbers) + 1)}'
 
-        # Adds code versions git-hash for tracked projects
+        # Adds code versions (git-hash) for tracked projects
 
         if git_hashes is not None:
             git_hashes = git_hashes
@@ -42,9 +57,9 @@ class DirectoryTree(object):
 
         # Level 1: storage_dir
 
-        self.storage_dir = DirectoryTree.root / storage_name
+        self.storage_dir = self.root / storage_name
 
-        # Level 1.5: summary_dir and benchmark_dir
+        # Level 1 leaves: summary_dir and benchmark_dir
 
         self.summary_dir = self.storage_dir / 'summary'
         self.benchmark_dir = self.storage_dir / 'benchmark'
@@ -57,9 +72,9 @@ class DirectoryTree(object):
             if not self.storage_dir.exists():
                 self.current_experiment = 'experiment1'
             else:
-                exst_run_nums = [int(str(folder.name).split('experiment')[1]) for folder in
-                                 self.storage_dir.iterdir() if
-                                 str(folder.name).startswith('experiment')]
+                exst_run_nums = [int(str(folder.name).split('experiment')[1]) for folder in self.storage_dir.iterdir()
+                                 if str(folder.name).startswith('experiment')]
+
                 if len(exst_run_nums) == 0:
                     self.current_experiment = 'experiment1'
                 else:
@@ -73,18 +88,16 @@ class DirectoryTree(object):
 
         self.seed_dir = self.experiment_dir / f"seed{seed}"
 
-        # Level 4: recorders_dir and incrementals_dir
+        # Level 3 leaves: recorders_dir and incrementals_dir
 
         self.recorders_dir = self.seed_dir / 'recorders'
         self.incrementals_dir = self.seed_dir / 'incrementals'
 
-        # Level 4.5: images
-
-        self.random_results_dir = self.recorders_dir / 'random_results'
-        self.fixed_results_dir = self.recorders_dir / 'fixed_results'
-
     def create_directories(self):
         os.makedirs(str(self.seed_dir))
+
+    def get_run_name(self):
+        return self.storage_dir.name + '_' + self.experiment_dir.name + '_' + self.seed_dir.name
 
     @staticmethod
     def get_all_experiments(storage_dir):
@@ -101,7 +114,7 @@ class DirectoryTree(object):
         return sorted(all_seeds, key=lambda item: (int(str(item.stem).strip('seed')), item))
 
     @classmethod
-    def init_from_seed_path(cls, seed_path):
+    def init_from_seed_path(cls, seed_path, root):
         assert isinstance(seed_path, Path)
 
         id, git_hashes, alg_name, task_name, desc = \
@@ -113,7 +126,8 @@ class DirectoryTree(object):
                        task_name=task_name,
                        desc=desc,
                        experiment_num=seed_path.parents[0].name.strip('experiment'),
-                       seed=seed_path.name.strip('seed'))
+                       seed=seed_path.name.strip('seed'),
+                       root=root)
 
         return instance
 
@@ -165,10 +179,10 @@ def get_all_seeds(storage_dir):
     return all_seeds_dirs
 
 
-def get_storage_dirs_across_envs(storage_dir):
-    # Finds all storage directories that are identical (hash, alg_name, desc) but for the environment
+def get_storage_dirs_across_tasks(storage_dir, root_dir):
+    # Finds all storage directories that are identical (git_hashes, alg_name, desc) but for the task_name
 
-    all_storage_dirs = sorted([path for path in DirectoryTree.root.iterdir() if path.is_dir()])
+    all_storage_dirs = sorted([path for path in get_root(root_dir).iterdir() if path.is_dir()])
 
     similar_storage_dirs = []
     name_elements_current = storage_dir.name.split('_')
@@ -177,7 +191,7 @@ def get_storage_dirs_across_envs(storage_dir):
         name_elements_dir = dir.name.split('_')
         if all([str_1 == str_2 for i, (str_1, str_2)
                 in enumerate(zip(name_elements_dir, name_elements_current))
-                if i not in [0, 4]]):
+                if i not in [0, 3]]):
             similar_storage_dirs.append(dir)
 
     # Moves initial storage_dir in front of the list

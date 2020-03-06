@@ -3,16 +3,15 @@
 
 # ASSUMPTION: this module (alfred) assumes that the directory from which it is called contains:
 # 1. a file named 'main.py'
-# 2. a function 'main.get_main_args()' that defines the hyperparameters for this project
-try:
-    from main import main, get_main_args
+# 2. a function 'main.main(config, dir_tree, logger, pbar)' that runs the project with the specified hyperparameters
+try:  # TODO: update this description
+    from main import main
 except ImportError as e:
     raise ImportError(
         f"{e.msg}\n"
-        f"This module (alfred) assumes that the directory from which it is called contains:"
+        f"alfred.prepare_schedule assumes the following structure:"
         f"\n\t1. a file named 'main.py'"
-        f"\n\t2. a function 'main.get_main_args(overwritten_cmd_line)' that defines the hyperparameters for this project"
-        f"\n\t3. a function 'main.main(config, dir_manager, logger, pbar)' that runs the project with the specified hyperparameters"
+        f"\n\t2. a function 'main.main(config, dir_tree, logger, pbar)' that runs the project with the specified hyperparameters"
     )
 
 # other imports
@@ -27,29 +26,38 @@ from tqdm import tqdm
 
 from alfred.utils.config import load_config_from_json, parse_bool
 from alfred.utils.directory_tree import *
-from alfred.utils.misc import create_logger, create_new_filehandler
+from alfred.utils.misc import create_logger, create_new_filehandler, select_storage_dirs
 from alfred.make_comparative_plots import create_comparative_figure
 from alfred.clean_interrupted import clean_interrupted
 from alfred.benchmark import summarize_search
 
 
-def get_run_schedule_args():
+def get_launch_schedule_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--storage_name', type=str, required=True)
+
+    parser.add_argument('--from_file', type=str, default=None,
+                        help="Path containing all the storage_names to launch")
+
+    parser.add_argument('--storage_name', type=str, default=None,
+                        help="Single storage_name to launch (NULL if --from_file is provided)")
+    parser.add_argument('--over_tasks', type=parse_bool, default=False,
+                        help="If true, subprocesses will look for unhatched seeds in all storage_dir "
+                             "that have the same hashes, 'alg_name', 'desc' but different 'task_name' "
+                             "as the provided 'storage_name' (NULL if --from_file is provided)")
+
     parser.add_argument('--n_processes', type=int, default=1)
     parser.add_argument('--n_experiments_per_proc', type=int, default=np.inf)
     parser.add_argument('--use_pbar', type=parse_bool, default=False)
     parser.add_argument('--check_hash', type=parse_bool, default=True)
-    parser.add_argument('--run_over_envs', type=parse_bool, default=False,
-                        help="If true, subprocesses will look for unhatched seeds in all storage_dir"
-                             "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
     parser.add_argument('--run_clean_interrupted', type=parse_bool, default=False,
                         help="Will clean mysteriously stopped seeds to be re-runned, but not crashed experiments")
+
+    parser.add_argument('--root_dir', default=None, type=str)
 
     return parser.parse_args()
 
 
-def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, logger, process_i=0):
+def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, logger, root_dir, process_i=0):
     call_i = 0
 
     try:
@@ -94,15 +102,15 @@ def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, l
 
                 try:
                     config = load_config_from_json(str(seed_dir / 'config.json'))
-                    dir_manager = DirectoryTree.init_from_seed_path(seed_dir)
+                    dir_tree = DirectoryTree.init_from_seed_path(seed_dir, root=root_dir)
 
                     experiment_logger = create_logger(
                         name=f'PROCESS{process_i}:'
-                        f'{dir_manager.storage_dir.name}/'
-                        f'{dir_manager.experiment_dir.name}/'
-                        f'{dir_manager.seed_dir.name}',
+                             f'{dir_tree.storage_dir.name}/'
+                             f'{dir_tree.experiment_dir.name}/'
+                             f'{dir_tree.seed_dir.name}',
                         loglevel=logging.INFO,
-                        logfile=dir_manager.seed_dir / 'logger.out',
+                        logfile=dir_tree.seed_dir / 'logger.out',
                         streamHandle=not (use_pbar)
                     )
 
@@ -113,10 +121,10 @@ def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, l
                         pbar = None
 
                     logger.info(
-                        f"{dir_manager.storage_dir.name}/{dir_manager.experiment_dir.name}/{dir_manager.seed_dir.name} - "
+                        f"{dir_tree.storage_dir.name}/{dir_tree.experiment_dir.name}/{dir_tree.seed_dir.name} - "
                         f"Launching...")
 
-                    main(config, dir_manager, experiment_logger, pbar)
+                    main(config=config, dir_tree=dir_tree, logger=experiment_logger, pbar=pbar)
 
                     open(str(seed_dir / 'COMPLETED'), 'w+').close()
                     call_i += 1
@@ -143,7 +151,11 @@ def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, l
                     logger.info(f"{storage_dir.name}: MAKING COMPARATIVE PLOTS")
 
                     try:
-                        create_comparative_figure(storage_dir, logger=logger)
+                        create_comparative_figure(from_file=None,
+                                                  storage_name=storage_dir.name,
+                                                  over_tasks=False,
+                                                  root_dir=root_dir,
+                                                  logger=logger)
 
                     except Exception as e:
                         logger.info(f"{type(e)}: unable to plot comparative graphs"
@@ -155,20 +167,25 @@ def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, l
 
                 if all_seeds == completed_seeds and not (storage_dir / "summary" / "SUMMARY_ONGOING").exists():
 
-                    if not (storage_dir / "summary" / "SUMMARY_ONGOING").exists()\
-                    and not (storage_dir / "summary" / "SUMMARY_COMPLETED").exists():
+                    if not (storage_dir / "summary" / "SUMMARY_ONGOING").exists() \
+                            and not (storage_dir / "summary" / "SUMMARY_COMPLETED").exists():
                         os.makedirs(str(storage_dir / "summary"), exist_ok=True)
                         open(str(storage_dir / "summary" / 'SUMMARY_ONGOING'), 'w+').close()
                         logger.info(f"{storage_dir.name}: SUMMARIZING SEARCH")
 
                         try:
                             summarize_search(storage_name=storage_dir.name,
-                                             agent_i=0,
-                                             n_benchmark_episodes=100,
+                                             x_metric="episode",
+                                             y_metric="eval_return",
+                                             y_error_bars="bootstrapped_CI",
+                                             n_eval_runs=None,
+                                             performance_metric="avg_eval_return",
+                                             performance_aggregation="last",
                                              re_run_if_exists=False,
                                              make_performance_chart=True,
                                              make_learning_plots=True,
-                                             logger=logger)
+                                             logger=logger,
+                                             root_dir=root_dir)
 
                             os.remove(str(storage_dir / "summary" / 'SUMMARY_ONGOING'))
                             open(str(storage_dir / "summary" / 'SUMMARY_COMPLETED'), 'w+').close()
@@ -188,13 +205,42 @@ def _run_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, l
     return call_i
 
 
-def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_pbar, check_hash, run_over_envs,
-                        run_clean_interrupted):
+def launch_schedule(from_file, storage_name, over_tasks, n_processes, n_experiments_per_proc, use_pbar, check_hash,
+                    run_clean_interrupted, root_dir):
+
+    # Select storage_dirs to run over
+
+    storage_dirs = select_storage_dirs(from_file, storage_name, over_tasks, root_dir)
+
     # Creates logger
 
-    storage_dir = DirectoryTree.root / storage_name
-    master_logger = create_logger(name=f'RUN_SCHEDULE - MASTER', loglevel=logging.INFO,
-                                  logfile=storage_dir / 'run_schedule_logger.out', streamHandle=True)
+    master_logger = create_logger(name=f'RUN_SCHEDULE - MASTER', loglevel=logging.INFO, logfile=None, streamHandle=True)
+
+    for storage_dir in storage_dirs:
+        file_handler = create_new_filehandler(master_logger.name, logfile=storage_dir / 'run_schedule_logger.out')
+        master_logger.addHandler(file_handler)
+
+    master_logger.info("Storage Directories to be launched:")
+    for storage_dir in storage_dirs:
+        master_logger.info(storage_dir)
+
+    for storage_dir in storage_dirs:
+
+        # Checks if code hash matches the folder to be run_schedule
+
+        if check_hash:
+
+            current_git_hashes = {}
+            for name, repo in DirectoryTree.git_repos_to_track.items():
+                current_git_hashes[name] = get_git_hash(path=repo)
+
+            _, storage_name_git_hashes, _, _, _ = DirectoryTree.extract_info_from_storage_name(storage_dir.name)
+            storage_name_git_hash_list = storage_name_git_hashes.split("-")
+
+            for i, (name, hash) in enumerate(current_git_hashes.items()):
+                if hash not in storage_name_git_hash_list:
+                    raise ValueError(f"Repository '{name}' hash is: {hash}. "
+                                     f"You are running a storage_dir with '{name}' hash: {storage_name_git_hash_list[i]}")
 
     # Log some info
 
@@ -205,38 +251,9 @@ def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_p
                        f"\nn_experiments_per_proc={n_experiments_per_proc}"
                        f"\nuse_pbar={use_pbar}"
                        f"\ncheck_hash={check_hash}"
-                       f"\nrun_over_envs={run_over_envs}"
-                       f"\n\nDirectoryManager.root={DirectoryTree.root}"
+                       f"\nover_tasks={over_tasks}"
+                       f"\nroot={get_root(root_dir)}"
                        f"\n")
-
-    # Checks if code hash matches the folder to be run_schedule
-
-    if check_hash:
-
-        current_git_hashes = {}
-        for name, repo in DirectoryTree.git_repos_to_track.items():
-            current_git_hashes[name] = get_git_hash(path=repo)
-
-        _, storage_name_git_hashes, _, _, _ = DirectoryTree.extract_info_from_storage_name(storage_name)
-        storage_name_git_hash_list = storage_name_git_hashes.split("-")
-
-        for i, (name, hash) in enumerate(current_git_hashes.items()):
-            if hash not in storage_name_git_hash_list:
-                raise ValueError(f"Repository '{name}' hash is: {hash}. "
-                                 f"You are running a storage_dir with '{name}' hash: {storage_name_git_hash_list[i]}")
-
-    # Select storage_dirs to run over
-
-    storage_dir = DirectoryTree.root / storage_name
-
-    if run_over_envs:
-        storage_dirs = get_storage_dirs_across_envs(storage_dir)
-    else:
-        storage_dirs = [storage_dir]
-
-    master_logger.info("Storage Directories to be runned:")
-    for storage_dir in storage_dirs:
-        master_logger.info(storage_dir)
 
     # Clean the storage_dirs if asked to
 
@@ -244,13 +261,15 @@ def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_p
         for storage_dir in storage_dirs:
             clean_interrupted(storage_name=storage_dir.name,
                               clean_crashes=False,
-                              clean_over_envs=False,
-                              asks_for_validation=False,
-                              logger=master_logger)
+                              over_tasks=False,
+                              ask_for_validation=False,
+                              logger=master_logger,
+                              root_dir=root_dir)
 
     # Launches multiple processes
 
     if n_processes > 1:
+        ## TODO: Logger is not supported with multiprocess (should use queues and all)
         n_calls = None  # for now we only return n_calls != None if running with one process only
 
         processes = []
@@ -263,21 +282,20 @@ def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_p
                                    logfile=storage_dir / 'run_schedule_logger.out', streamHandle=True)
 
             # Adds logfiles to logger if multiple storage_dirs
-
             if len(storage_dirs) > 1:
-
                 for storage_dir in storage_dirs[1:]:
                     file_handler = create_new_filehandler(logger.name, logfile=storage_dir / 'run_schedule_logger.out')
                     logger.addHandler(file_handler)
 
             # Creates process
 
-            processes.append(Process(target=_run_schedule, args=(storage_dirs,
-                                                                 n_processes,
-                                                                 n_experiments_per_proc,
-                                                                 use_pbar,
-                                                                 logger,
-                                                                 i)))
+            processes.append(Process(target=_work_on_schedule, args=(storage_dirs,
+                                                                     n_processes,
+                                                                     n_experiments_per_proc,
+                                                                     use_pbar,
+                                                                     logger,
+                                                                     root_dir,
+                                                                     i)))
         try:
             # start processes
 
@@ -312,16 +330,17 @@ def launch_run_schedule(storage_name, n_processes, n_experiments_per_proc, use_p
     # No additional processes
 
     else:
-        n_calls = _run_schedule(storage_dirs,
-                                n_processes,
-                                n_experiments_per_proc,
-                                use_pbar,
-                                master_logger)
+        n_calls = _work_on_schedule(storage_dirs,
+                                    n_processes,
+                                    n_experiments_per_proc,
+                                    use_pbar,
+                                    master_logger,
+                                    root_dir=root_dir)
 
     return n_calls
 
 
 if __name__ == '__main__':
     time.sleep(np.random.uniform(low=0., high=1.5))
-    kwargs = vars(get_run_schedule_args())
-    launch_run_schedule(**kwargs)
+    kwargs = vars(get_launch_schedule_args())
+    launch_schedule(**kwargs)

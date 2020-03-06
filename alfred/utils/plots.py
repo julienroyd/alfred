@@ -5,8 +5,11 @@ import numpy as np
 import seaborn as sns
 
 sns.set()
+sns.set_style('whitegrid')
 
-def bar_chart(ax, scores, err_up=None, err_down=None, capsize=10., colors=None, group_names=None, xlabel="", ylabel="", title="", cmap="viridis"):
+
+def bar_chart(ax, scores, err_up=None, err_down=None, capsize=10., colors=None,
+              group_names=None, xlabel="", ylabel="", title="", cmap="viridis"):
     # data to plot
     n_groups = len(list(scores.values())[0])
 
@@ -42,46 +45,81 @@ def bar_chart(ax, scores, err_up=None, err_down=None, capsize=10., colors=None, 
     ax.legend(loc='upper right')
 
 
-def plot_curves(ax, ys, xs=None, colors=None, labels=None, xlabel="", ylabel="", title="", stds=None, smooth=False, cmap='viridis'):
+def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, markevery=None, labels=None,
+                xlabel="", ylabel="", axis_font_size=22, tick_font_size=18, title="", title_font_size=24,
+                fill_up=None, fill_down=None, alpha_fill=0.1, smooth=False, add_legend=True, legend_underneath=False,
+                legend_font_size=20, legend_pos=(-0.5, -0.2)):
     if xs is None:
-        xs = [range(len(ys[0])) for _ in ys]
+        xs = [range(len(y)) for y in ys]
 
     if colors is None:
-        cm = plt.cm.get_cmap(cmap)
-        colors = [np.array(cm(float(i) / float(len(ys)))[:3]) for i in range(len(ys))]
+        colors = [None] * len(ys)
+
+    if markers is None:
+        markers = [None] * len(ys)
 
     if labels is None:
-        labels = [f'curve {i}' for i in range(len(ys))]
+        labels = [None] * len(ys)
 
     # Plots losses and smoothed losses for every agent
+
     for i, (x, y) in enumerate(zip(xs, ys)):
 
-        # Smooth curve using running average
-        if smooth:
-            ax.plot(x, y, color=colors[i], alpha=0.3)
-            ax.plot(x, smooth(y), color=colors[i], label=labels[i])
+        if markevery is None:
+            markevery = len(y) // 10
 
-        # Regular plotting
-        else:
+        # Adds filling around curve (central tendency)
+
+        if fill_up is not None and fill_down is not None:
             ax.plot(x, y, color=colors[i], label=labels[i])
+            ax.fill_between(x, y - fill_down[i], y + fill_up[i], color=colors[i], alpha=alpha_fill)
 
-            # Adds envelope given by the standard deviation
-            if stds is not None:
-                ax.fill_between(x, y - stds[i], y + stds[i], color=colors[i], alpha=0.1)
+        # Smooth curve using running average
 
-    ax.set_title(title, fontsize=12, fontweight='bold')
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    ax.legend(loc='lower right')
+        elif smooth:
+            ax.plot(x, y, color=colors[i], alpha=3*alpha_fill)
+            ax.plot(x, smooth_out(y), color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize, label=labels[i])
+
+        # Just regular curve
+
+        else:
+            ax.plot(x, y, color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize, label=labels[i])
+
+    # Axis settings
+
+    ax.set_title(title, fontsize=title_font_size)
+    ax.set_xlabel(xlabel, fontsize=axis_font_size)
+    ax.set_ylabel(ylabel, fontsize=axis_font_size)
+
+    ax.yaxis.set_major_locator(plt.MaxNLocator(5))
+    ax.tick_params(axis='both', which='major', labelsize=tick_font_size)
+
+    # Legend settings
+
+    if not all(label is None for label in labels) and add_legend:
+
+        if legend_underneath:
+            if add_legend:
+                legend = ax.legend(loc='upper left', framealpha=0.25, bbox_to_anchor=legend_pos,
+                                   fancybox=True, shadow=False, ncol=len(ys), fontsize=legend_font_size)
+                for legobj in legend.legendHandles:
+                    legobj.set_linewidth(2.0)
+                for text in legend.get_texts():
+                    text.set_ha('left')
+
+        else:
+            ax.legend(loc='upper left', framealpha=0.25, fancybox=True, shadow=False)
+
+    return
 
 
-def plot_sampled_hyperparams(ax, param_samples):
+def plot_sampled_hyperparams(ax, param_samples, log_params):
     cm = plt.cm.get_cmap('viridis')
     for i, param in enumerate(param_samples.keys()):
         args = param_samples[param], np.zeros_like(param_samples[param])
         kwargs = {'linestyle': '', 'marker': 'o', 'label': param, 'alpha': 0.2,
                   'color': cm(float(i) / float(len(param_samples)))}
-        if param in ['lr', 'tau', 'initial_alpha', 'grad_clip_value', 'lamda1', 'lamda2']:
+        if param in log_params:
             ax[i].semilogx(*args, **kwargs)
         else:
             ax[i].plot(*args, **kwargs)
@@ -90,13 +128,69 @@ def plot_sampled_hyperparams(ax, param_samples):
         ax[i].get_yaxis().set_ticks([])
         ax[i].legend(loc='upper right')
 
-def smooth(data_serie, smooth_factor=0.8):
+
+def plot_vertical_densities(ax, ys, colors=None, labels=None,
+                            xlabel="", ylabel="", axis_font_size=22, tick_font_size=18, title="", title_font_size=24,
+                            make_boxplot=False, whis=(0, 99)):
+    if colors is None:
+        colors = [None] * len(ys)
+
+    if labels is None:
+        labels = [None] * len(ys)
+
+    # Plots vertical densities (either every point or summarised in box-plots)
+
+    if make_boxplot:
+        bp1 = ax.boxplot(ys,
+                         labels=labels,
+                         sym='o',
+                         whis=whis,
+                         positions=np.arange(1, len(ys) + 1),
+                         widths=0.50,
+                         patch_artist=True)
+
+        for box, fli, med, col in zip(bp1['boxes'], bp1['fliers'], bp1['medians'], colors):
+            box.set(facecolor=col)
+            fli.set(markerfacecolor=col)
+            med.set(color='black', linewidth=2)
+
+    else:
+        for i, y in enumerate(ys):
+
+            pos = [i] * len(ys)
+            ax.plot(np.array(pos) + 1, ys, linestyle='', marker='o', label=labels[i], alpha=0.5, color=colors[i])
+
+    # Axis settings
+
+    ax.set_xlim(0.5, len(ys) + 0.5)
+    ax.xaxis.set_major_locator(plt.MaxNLocator(len(ys)))
+    ax.set_xticklabels([""] + labels, rotation=45, ha="right")
+
+    ax.set_title(title, fontsize=title_font_size)
+    ax.set_xlabel(xlabel, fontsize=axis_font_size)
+    ax.set_ylabel(ylabel, fontsize=axis_font_size)
+
+    ax.yaxis.set_major_locator(plt.MaxNLocator(5))
+    ax.tick_params(axis='both', which='major', labelsize=tick_font_size)
+
+    plt.tight_layout()
+
+
+def smooth_out(data_serie, smooth_factor=0.2):
     assert smooth_factor > 0. and smooth_factor < 1.
-    mean = data_serie[0]
+    mean = None
+
     new_serie = []
     for value in data_serie:
-        mean = smooth_factor * mean + (1 - smooth_factor) * value
-        new_serie.append(mean)
+        if value is None:
+            new_serie.append(None)
+        else:
+            if mean is None:
+                mean = value
+            else:
+                mean = smooth_factor * mean + (1 - smooth_factor) * value
+
+            new_serie.append(mean)
 
     return new_serie
 

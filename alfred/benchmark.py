@@ -1,10 +1,13 @@
-from evaluate import evaluate, get_evaluation_args  # TODO: deal with that
-
-# TODO: eventually, I should:
-# TODO:    1. create a file common.py that has some general functions used by both summaries (intra storage_dir) and benchmarks (across storage_dir's)
-# TODO:    2. separate 'summarise.py' and 'benchamark.py'. Only 'summarise.py' would be called at the end of run_schedule
+from alfred.utils.config import parse_bool, load_dict_from_json, save_dict_to_json
+from alfred.utils.misc import create_logger
+from alfred.utils.directory_tree import DirectoryTree, get_root
+from alfred.utils.recorder import Recorder
+from alfred.utils.plots import create_fig, bar_chart, plot_curves, plot_vertical_densities
+from alfred.utils.stats import get_95_confidence_interval_of_sequence, get_95_confidence_interval
 
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import argparse
 import pickle
 import os
@@ -12,36 +15,51 @@ import logging
 from shutil import copyfile
 from collections import OrderedDict
 import seaborn as sns
+import pathlib
+from pathlib import Path
+
 sns.set()
-
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-
-from alfred.utils.directory_tree import DirectoryTree
-from alfred.utils.plots import create_fig, plot_curves, bar_chart  # TODO: deal with that
-from alfred.utils.config import load_dict_from_json, save_dict_to_json, parse_bool
-from alfred.utils.recorder import TrainingRecorder
-from alfred.utils.misc import create_logger
-from schedules import official_benchmark_lists
+sns.set_style('whitegrid')
 
 
 def get_benchmark_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--benchmark_type', type=str, choices=['compare_models', 'compare_searches'], required=True)
+
+    parser.add_argument('--from_file', type=str, default=None)
     parser.add_argument('--storage_names', type=str, nargs='+', default=None)
-    parser.add_argument('--agent_i', type=int, default=0)
-    parser.add_argument('--n_episodes', type=int, default=100)
-    parser.add_argument('--re_run_if_exists', type=parse_bool, default=False)
+
+    parser.add_argument('--x_metric', default="episode", type=str)
+    parser.add_argument('--y_metric', default="eval_return", type=str)
+    parser.add_argument('--y_error_bars', default="bootstrapped_CI", choices=["bootstrapped_CI", "stderr", "10th_quantile"])
+
+    parser.add_argument('--re_run_if_exists', type=parse_bool, default=False,
+                        help="Whether to re-compute seed_scores if 'seed_scores.pkl' already exists")
+    parser.add_argument('--n_eval_runs', type=int, default=100,
+                        help="Only used if performance_metric=='evaluation_runs'")
+    parser.add_argument('--performance_metric', type=str, default='avg_eval_return',
+                        help="Can fall into either of two categories: "
+                             "(1) 'evaluation_runs': evaluate() will be called on model in seed_dir for 'n_eval_runs'"
+                             "(2) OTHER METRIC: this metric must have been recorded in training and be a key of train_recorder")
+    parser.add_argument('--performance_aggregation', type=str, choices=['min', 'max', 'avg', 'last'], default='last',
+                        help="How gathered 'performance_metric' should be aggregated to quantify performance of seed_dir")
+
+    parser.add_argument('--root_dir', default="./storage", type=str)
+
     return parser.parse_args()
 
 
 # utility functions for curves (should not be called alone) -------------------------------------------------------
 
-def _run_performance_benchmark(storage_dir, n_episodes, group_key, bar_key, re_run_if_exists, save_dir, logger):
-    if (storage_dir / save_dir / f"{save_dir}_performance_data.pkl").exists() and not re_run_if_exists:
-        logger.info(f" SKIPPING {storage_dir} - {save_dir}_performance.pkl already exists")
+def _compute_seed_scores(storage_dir, performance_metric, performance_aggregation, group_key, bar_key,
+                         re_run_if_exists, save_dir, logger, root_dir, n_eval_runs=None):
+
+    if (storage_dir / save_dir / f"{save_dir}_seed_scores.pkl").exists() and not re_run_if_exists:
+        logger.info(f" SKIPPING {storage_dir} - {save_dir}_seed_scores.pkl already exists")
         return
+
+    else:
+        logger.info(f"Benchmarking {storage_dir}...")
 
     assert group_key in ['task_name', 'storage_name', 'experiment_num', 'alg_name']
     assert bar_key in ['task_name', 'storage_name', 'experiment_num', 'alg_name']
@@ -62,7 +80,7 @@ def _run_performance_benchmark(storage_dir, n_episodes, group_key, bar_key, re_r
 
         # Initialize container
 
-        all_seeds_return = []
+        all_seeds_scores = []
 
         for i, seed_dir in enumerate(experiment_seeds):
             # Prints which seed directory is being treated
@@ -85,34 +103,83 @@ def _run_performance_benchmark(storage_dir, n_episodes, group_key, bar_key, re_r
             outer_key = keys[bar_key]
             inner_key = keys[group_key]
 
-            # Sets config for evaluation phase
+            # Evaluation phase
 
-            eval_config = get_evaluation_args(overwritten_args="")
-            eval_config.storage_name = seed_dir.parents[1].name
-            eval_config.experiment_num = int(seed_dir.parents[0].name.strip("experiment"))
-            eval_config.seed_num = int(seed_dir.name.strip("seed"))
-            eval_config.render = False
-            eval_config.n_episodes = n_episodes
+            if performance_metric == 'evaluation_runs':
 
-            # Evaluates agent and stores the return
+                assert n_eval_runs is not None
 
-            returns = evaluate(eval_config)
-            all_seeds_return.append(returns)
+                try:
+                    from evaluate import evaluate, get_evaluation_args
+                except ImportError as e:
+                    raise ImportError(
+                        f"{e}\nTo evaluate models based on --performance_metric='evaluation_runs' "
+                        f"alfred.benchmark assumes the following structure that the working directory contains "
+                        f"a file called evaluate.py containing two functions: "
+                        f"\n\t1. a function evaluate() that returns a score for each evaluation run"
+                        f"\n\t2. a function get_evaluation_args() that returns a Namespace of arguments for evaluate()"
+                    )
+
+                # Sets config for evaluation phase
+
+                eval_config = get_evaluation_args(overwritten_args="")
+                eval_config.storage_name = seed_dir.parents[1].name
+                eval_config.experiment_num = int(seed_dir.parents[0].name.strip("experiment"))
+                eval_config.seed_num = int(seed_dir.name.strip("seed"))
+                eval_config.render = False
+                eval_config.n_episodes = n_eval_runs
+
+                # Evaluates agent and stores the return
+
+                performance_data = evaluate(eval_config)
+
+            else:
+
+                # Loads training data
+
+                loaded_recorder = Recorder.init_from_pickle_file(
+                    filename=str(seed_dir / 'recorders' / 'train_recorder.pkl'))
+
+                performance_data = loaded_recorder.tape[performance_metric]
+
+            # Aggregation phase
+
+            if performance_aggregation == 'min':
+                score = np.min(performance_data)
+
+            elif performance_aggregation == 'max':
+                score = np.max(performance_data)
+
+            elif performance_aggregation == 'avg':
+                score = np.mean(performance_data)
+
+            elif performance_aggregation == 'last':
+                score = performance_data[-1]
+
+            else:
+                raise NotImplementedError
+
+            all_seeds_scores.append(score)
 
         if outer_key not in scores.keys():
             scores[outer_key] = OrderedDict()
 
-        scores[outer_key][inner_key] = np.stack(all_seeds_return)
+        scores[outer_key][inner_key] = np.stack(all_seeds_scores)
 
     os.makedirs(storage_dir / save_dir, exist_ok=True)
-    with open(storage_dir / save_dir / f"{save_dir}_performance_data.pkl", "wb") as f:
+
+    with open(storage_dir / save_dir / f"{save_dir}_seed_scores.pkl", "wb") as f:
         pickle.dump(scores, f)
 
-    return
+    scores_info = {'n_eval_runs': n_eval_runs,
+                   'performance_metric': performance_metric,
+                   'performance_aggregation': performance_aggregation}
+
+    save_dict_to_json(scores_info, filename=str(storage_dir / save_dir / f"{save_dir}_seed_scores_info.json"))
 
 
-def _make_benchmark_performance_figure(storage_dirs, agent_i, save_dir, logger, normalize_with_first_model=True,
-                                       sort_bars=False, std_error=True, quantile=0.10):
+def _make_benchmark_performance_figure(storage_dirs, save_dir, y_error_bars, logger, normalize_with_first_model=True,
+                                       sort_bars=False):
     # Initialize containers
 
     scores_means = OrderedDict()
@@ -123,10 +190,10 @@ def _make_benchmark_performance_figure(storage_dirs, agent_i, save_dir, logger, 
 
     individual_scores = OrderedDict()
     for storage_dir in storage_dirs:
-        with open(storage_dir / save_dir / f"{save_dir}_performance_data.pkl", "rb") as f:
+        with open(storage_dir / save_dir / f"{save_dir}_seed_scores.pkl", "rb") as f:
             individual_scores[storage_dir.name] = pickle.load(f)
 
-    # Print keys so that user can verify all these benchmarks make sense to compare (e.g. same envs)
+    # Print keys so that user can verify all these benchmarks make sense to compare (e.g. same tasks)
 
     for storage_name, idv_score in individual_scores.items():
         logger.debug(storage_name)
@@ -134,7 +201,7 @@ def _make_benchmark_performance_figure(storage_dirs, agent_i, save_dir, logger, 
             logger.debug(f"{outer_key}: {list(idv_score[outer_key].keys())}")
         logger.debug(f"\n")
 
-    # Reorganize all individual_scores in a single dictionary and extract the right agent's results
+    # Reorganize all individual_scores in a single dictionary
 
     scores = OrderedDict()
     for storage_name, idv_score in individual_scores.items():
@@ -145,7 +212,7 @@ def _make_benchmark_performance_figure(storage_dirs, agent_i, save_dir, logger, 
                 if inner_key not in list(scores.keys()):
                     scores[outer_key][inner_key] = OrderedDict()
                 _, _, _, task_name, _ = DirectoryTree.extract_info_from_storage_name(storage_name)
-                scores[outer_key][inner_key] = idv_score[outer_key][inner_key].mean(axis=2)
+                scores[outer_key][inner_key] = idv_score[outer_key][inner_key]
 
     # First storage_dir will serve as reference if normalize_with_first_model is True
 
@@ -176,22 +243,37 @@ def _make_benchmark_performance_figure(storage_dirs, agent_i, save_dir, logger, 
                 scores_err_up[outer_key] = OrderedDict()
                 scores_err_down[outer_key] = OrderedDict()
 
-            scores_means[outer_key][inner_key] = np.mean(
-                scores[outer_key][inner_key] / (reference_means[inner_key] + 1e-8))
+            if y_error_bars == "stderr":
+                scores_means[outer_key][inner_key] = np.mean(
+                    scores[outer_key][inner_key] / (reference_means[inner_key] + 1e-8))
 
-            if std_error:
                 scores_err_down[outer_key][inner_key] = np.std(
                     scores[outer_key][inner_key] / (reference_means[inner_key] + 1e-8)) / len(
                     scores[outer_key][inner_key]) ** 0.5
                 scores_err_up[outer_key][inner_key] = scores_err_down[outer_key][inner_key]
 
-            else:
+            elif y_error_bars == "10th_quantiles":
+                scores_means[outer_key][inner_key] = np.mean(
+                    scores[outer_key][inner_key] / (reference_means[inner_key] + 1e-8))
+
+                quantile = 0.10
                 scores_err_down[outer_key][inner_key] = np.abs(
                     np.quantile(a=scores[outer_key][inner_key] / (reference_means[inner_key] + 1e-8), q=0. + quantile) \
                     - scores_means[outer_key][inner_key])
                 scores_err_up[outer_key][inner_key] = np.abs(
                     np.quantile(a=scores[outer_key][inner_key] / (reference_means[inner_key] + 1e-8), q=1. - quantile) \
                     - scores_means[outer_key][inner_key])
+
+            elif y_error_bars == "bootstrapped_CI":
+                scores_samples = scores[outer_key][inner_key] / (reference_means[inner_key] + 1e-8)
+
+                mean, err_up, err_down = get_95_confidence_interval(samples=scores_samples, method=y_error_bars)
+                scores_means[outer_key][inner_key] = mean
+                scores_err_up[outer_key][inner_key] = err_up
+                scores_err_down[outer_key][inner_key] = err_down
+
+            else:
+                raise NotImplementedError
 
     # Creates the graph
 
@@ -208,10 +290,15 @@ def _make_benchmark_performance_figure(storage_dirs, agent_i, save_dir, logger, 
               )
 
     n_training_seeds = scores[reference_key][list(scores_means[reference_key].keys())[0]].shape[0]
-    n_evaluation_runs = scores[reference_key][list(scores_means[reference_key].keys())[0]].shape[1]
-    info_str = f"agent{agent_i}\n{n_training_seeds} training seeds\n{n_evaluation_runs} evaluation runs"
 
-    ax.text(0.05, 0.95, info_str, transform=ax.transAxes, fontsize=12,
+    scores_info = load_dict_from_json(filename=str(storage_dir / save_dir / f"{save_dir}_seed_scores_info.json"))
+
+    info_str = f"{n_training_seeds} training seeds" \
+               f"\nn_eval_runs={scores_info['n_eval_runs']}" \
+               f"\nperformance_metric={scores_info['performance_metric']}" \
+               f"\nperformance_aggregation={scores_info['performance_aggregation']}"
+
+    ax.text(0.80, 0.95, info_str, transform=ax.transAxes, fontsize=12,
             verticalalignment='top', bbox=dict(facecolor='gray', alpha=0.1))
 
     # Saves storage_dirs from which the graph was created for traceability
@@ -220,9 +307,10 @@ def _make_benchmark_performance_figure(storage_dirs, agent_i, save_dir, logger, 
         os.makedirs(storage_dir / save_dir, exist_ok=True)
         fig.savefig(storage_dir / save_dir / f'{save_dir}_performance.png')
         save_dict_to_json({'sources': str(storage_dir) in storage_dirs,
-                           'agent_i': agent_i,
                            'n_training_seeds': n_training_seeds,
-                           'n_evaluation_runs': n_evaluation_runs,
+                           'n_eval_runs': scores_info['n_eval_runs'],
+                           'performance_metric': scores_info['performance_metric'],
+                           'performance_aggregation': scores_info['performance_aggregation']
                            },
                           storage_dir / save_dir / f'{save_dir}_performance_sources.json')
 
@@ -231,21 +319,22 @@ def _make_benchmark_performance_figure(storage_dirs, agent_i, save_dir, logger, 
     return sorted_inner_keys
 
 
-def _gather_experiments_training_curves(storage_dir, agent_i, graph_key, curve_key, logger, episodes=None, curves=None):
+def _gather_experiments_training_curves(storage_dir, graph_key, curve_key, logger, x_metric, y_metric,
+                                        x_data=None, y_data=None):
     assert graph_key in ['task_name', 'storage_name', 'experiment_num', 'alg_name']
     assert curve_key in ['task_name', 'storage_name', 'experiment_num', 'alg_name']
 
     # Initialize containers
 
-    if episodes is None:
-        episodes = OrderedDict()
+    if x_data is None:
+        x_data = OrderedDict()
     else:
-        assert type(episodes) is OrderedDict
+        assert type(x_data) is OrderedDict
 
-    if curves is None:
-        curves = OrderedDict()
+    if y_data is None:
+        y_data = OrderedDict()
     else:
-        assert type(curves) is OrderedDict
+        assert type(y_data) is OrderedDict
 
     # Get all experiment directories
 
@@ -281,105 +370,182 @@ def _gather_experiments_training_curves(storage_dir, agent_i, graph_key, curve_k
 
             # Loads training data
 
-            loaded_recorder = TrainingRecorder.init_from_pickle_file(
+            loaded_recorder = Recorder.init_from_pickle_file(
                 filename=str(seed_dir / 'recorders' / 'train_recorder.pkl'))
 
             # Stores the data
 
-            if outer_key not in curves.keys():
-                episodes[outer_key] = OrderedDict()
-                curves[outer_key] = OrderedDict()
+            if outer_key not in y_data.keys():
+                x_data[outer_key] = OrderedDict()
+                y_data[outer_key] = OrderedDict()
 
-            if inner_key not in curves[outer_key].keys():
-                episodes[outer_key][inner_key] = []
-                curves[outer_key][inner_key] = []
+            if inner_key not in y_data[outer_key].keys():
+                x_data[outer_key][inner_key] = []
+                y_data[outer_key][inner_key] = []
 
-            episodes[outer_key][inner_key].append(loaded_recorder.tape['eval_episodes'])
+            x_data[outer_key][inner_key].append(loaded_recorder.tape[x_metric])
+            y_data[outer_key][inner_key].append(loaded_recorder.tape[y_metric])
 
-            _, _, _, task_name, _ = DirectoryTree.extract_info_from_storage_name(storage_dir.name)
-            if task_name == 'compromise':
-                curves[outer_key][inner_key].append(np.stack(loaded_recorder.tape['eval_total_reward']).mean(axis=2))
-            else:
-                curves[outer_key][inner_key].append(np.stack(loaded_recorder.tape['eval_total_reward'])[:, :, agent_i])
-
-    return episodes, curves
+    return x_data, y_data
 
 
-def _make_benchmark_learning_figure(episodes, curves, storage_dirs, save_dir, n_labels=np.inf):
+def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_bars, storage_dirs, save_dir, logger, n_labels=np.inf, visuals_file=None):
     # Initialize containers
 
-    curves_means = OrderedDict()
-    curves_stds = OrderedDict()
+    y_data_means = OrderedDict()
+    y_data_err_up = OrderedDict()
+    y_data_err_down = OrderedDict()
+    long_labels = OrderedDict()
     labels = OrderedDict()
+    colors = OrderedDict()
+    markers = OrderedDict()
 
-    for outer_key in curves:
-        curves_means[outer_key] = OrderedDict()
-        curves_stds[outer_key] = OrderedDict()
+    for outer_key in y_data:
+        y_data_means[outer_key] = OrderedDict()
+        y_data_err_up[outer_key] = OrderedDict()
+        y_data_err_down[outer_key] = OrderedDict()
 
     # Initialize figure
 
-    n_graphs = len(curves.keys())
+    n_graphs = len(y_data.keys())
 
-    if n_graphs > 1:
-        axes_shape = (2, int(np.ceil(len(curves.keys()) / 2.)))
+    if n_graphs == 3:
+        axes_shape = (1, 3)
+
+    elif n_graphs > 1:
+        i_max = int(np.ceil(np.sqrt(len(y_data.keys()))))
+        axes_shape = (i_max, int(np.ceil(len(y_data.keys()) / i_max)))
     else:
         axes_shape = (1, 1)
 
-    fig, axes = create_fig(axes_shape)
+    # Creates figure
+
+    gs = gridspec.GridSpec(*axes_shape)
+    fig = plt.figure(figsize=(12 * axes_shape[1], 5 * axes_shape[0]))
+
+    # Loads visuals dictionaries
+
+    if visuals_file is not None:
+        visuals = load_dict_from_json(visuals_file)
+    else:
+        visuals = None
 
     # Compute means and stds for all inner_key curve from raw data
 
-    for i, outer_key in enumerate(curves.keys()):
+    for i, outer_key in enumerate(y_data.keys()):
+        for inner_key in y_data[outer_key].keys():
+            x_data[outer_key][inner_key] = x_data[outer_key][inner_key][0]  # assumes all x_data are the same
 
-        for inner_key in curves[outer_key].keys():
-            episodes[outer_key][inner_key] = episodes[outer_key][inner_key][0]
-            curves_means[outer_key][inner_key] = np.stack(curves[outer_key][inner_key], axis=2).mean(axis=(1, 2))
-            curves_stds[outer_key][inner_key] = np.stack(curves[outer_key][inner_key], axis=2).std(axis=(1, 2))
+            if y_error_bars == "stderr":
+                y_data_means[outer_key][inner_key] = np.stack(y_data[outer_key][inner_key], axis=-1).mean(-1)
+                y_data_err_up[outer_key][inner_key] = np.stack(y_data[outer_key][inner_key], axis=-1).std(-1) \
+                                                      / len(y_data_means[outer_key][inner_key]) ** 0.5
+                y_data_err_down = y_data_err_up
 
-        labels[outer_key] = list(curves_means[outer_key].keys())
+            elif y_error_bars == "bootstrapped_CI":
+                y_data_samples = np.stack(y_data[outer_key][inner_key], axis=-1)  # dim=0 is accross time (n_time_steps, n_samples)
+                mean, err_up, err_down = get_95_confidence_interval_of_sequence(list_of_samples=y_data_samples,
+                                                                                method=y_error_bars)
+                y_data_means[outer_key][inner_key] = mean
+                y_data_err_up[outer_key][inner_key] = err_up
+                y_data_err_down[outer_key][inner_key] = err_down
+
+            else:
+                raise NotImplementedError
+
+        long_labels[outer_key] = list(y_data_means[outer_key].keys())
 
         # Limits the number of labels to be displayed (only displays labels of n_labels best experiments)
 
         if n_labels < np.inf:
-            mean_over_entire_curves = np.array([array.mean() for array in curves_means[outer_key].values()])
+            mean_over_entire_curves = np.array([array.mean() for array in y_data_means[outer_key].values()])
             n_max_idxs = (-mean_over_entire_curves).argsort()[:n_labels]
 
-            for ii in range(len(labels[outer_key])):
-                if ii in n_max_idxs:
+            for k in range(len(long_labels[outer_key])):
+                if k in n_max_idxs:
                     continue
                 else:
-                    labels[outer_key][i] = None
+                    long_labels[outer_key][k] = None
 
         # Selects right ax object
 
         if axes_shape == (1, 1):
-            current_ax = axes
+            current_ax = fig.add_subplot(gs[0, 0])
         elif any(np.array(axes_shape) == 1):
-            current_ax = axes[i]
+            current_ax = fig.add_subplot(gs[0, i])
+        elif axes_shape == (2, 2):
+            current_ax = fig.add_subplot(gs[i // 2, i % 2])
         else:
-            current_ax = axes[i // axes_shape[1], i % axes_shape[1]]
+            if i == 0:
+                current_ax = fig.add_subplot(gs[0, :])
+            else:
+                current_ax = fig.add_subplot(gs[1, i - 1])
+
+        # Collect algorithm names
+
+        if all([type(long_label) is pathlib.PosixPath for long_label in long_labels[outer_key]]):
+            algs = []
+            for path in long_labels[outer_key]:
+                _, _, alg, _, _ = DirectoryTree.extract_info_from_storage_name(path.name)
+                algs.append(alg)
+
+        # Sets visuals
+
+        if type(visuals) is dict and 'labels_dict' in visuals.keys():
+            labels[outer_key] = [visuals['labels_dict'][alg] for alg in algs]
+        else:
+            labels[outer_key] = long_labels[outer_key]
+
+        if type(visuals) is dict and 'colors_dict' in visuals.keys():
+            colors[outer_key] = [visuals['colors_dict'][alg] for alg in algs]
+        else:
+            colors[outer_key] = [None for _ in long_labels[outer_key]]
+
+        if type(visuals) is dict and 'markers_dict' in visuals.keys():
+            markers[outer_key] = [visuals['markers_dict'][alg] for alg in algs]
+        else:
+            markers[outer_key] = [None for _ in long_labels[outer_key]]
+
+        logger.info(f"Graph for {outer_key}:\n\tlabels={labels}\n\tcolors={colors}\n\tmarkers={markers}")
 
         # Plots the curves
 
         plot_curves(current_ax,
-                    xs=list(episodes[outer_key].values()),
-                    ys=np.stack(list(curves_means[outer_key].values())),
-                    stds=np.stack(list(curves_stds[outer_key].values())),
+                    xs=list(x_data[outer_key].values()),
+                    ys=list(y_data_means[outer_key].values()),
+                    fill_up=list(y_data_err_up[outer_key].values()),
+                    fill_down=list(y_data_err_down[outer_key].values()),
                     labels=labels[outer_key],
-                    xlabel="Episodes",
-                    title=outer_key)
+                    colors=colors[outer_key],
+                    markers=markers[outer_key],
+                    xlabel=x_metric,
+                    ylabel=y_metric,
+                    title=outer_key.upper(),
+                    add_legend=True if i==(len(list(y_data.keys())) - 1) else False,
+                    legend_underneath=True)
 
     for storage_dir in storage_dirs:
         os.makedirs(storage_dir / save_dir, exist_ok=True)
-        fig.savefig(storage_dir / save_dir / f'{save_dir}_learning.png')
+        fig.savefig(storage_dir / save_dir / f'{save_dir}_learning.png', bbox_inches='tight')
 
     plt.close(fig)
 
 
-def _make_vertical_densities_figure(storage_dirs, agent_i, save_dir, logger):
+def _make_vertical_densities_figure(storage_dirs, visuals_file, make_box_plot, y_metric, save_dir, load_dir, logger):
     # Initialize container
 
     all_means = OrderedDict()
+    long_labels = OrderedDict()
+    labels = OrderedDict()
+    colors = OrderedDict()
+    markers = OrderedDict()
+
+    # Loads visuals dictionaries
+
+    if visuals_file is not None:
+        visuals = load_dict_from_json(visuals_file)
+    else:
+        visuals = None
 
     # Gathers data
 
@@ -388,7 +554,7 @@ def _make_vertical_densities_figure(storage_dirs, agent_i, save_dir, logger):
 
         # Loads the scores saved by summarize_search
 
-        with open(str(storage_dir / save_dir / f"{save_dir}_performance_data.pkl"), "rb") as f:
+        with open(str(storage_dir / load_dir / f"{load_dir}_seed_scores.pkl"), "rb") as f:
             scores = pickle.load(f)
 
         # Taking the mean across seeds and evaluation-runs for each experiment
@@ -398,46 +564,96 @@ def _make_vertical_densities_figure(storage_dirs, agent_i, save_dir, logger):
 
         # Adding task_name if first time it is encountered
 
-        task_name = storage_name.split("_")[4]
+        _, _, _, task_name, _ = DirectoryTree.extract_info_from_storage_name(storage_name)
         if task_name not in list(all_means.keys()):
             all_means[task_name] = OrderedDict()
 
-        # Taking the mean across evaluations and seeds for agent_i
+        # Taking the mean across evaluations and seeds
 
         _, _, _, task_name, _ = DirectoryTree.extract_info_from_storage_name(storage_dir.name)
         all_means[task_name][storage_name] = [array.mean() for array in scores[x].values()]
+
+        if task_name not in long_labels.keys():
+            long_labels[task_name] = [storage_dir]
+        else:
+            long_labels[task_name].append(storage_dir)
 
     # Initialize figure
 
     n_graphs = len(all_means.keys())
 
-    if n_graphs > 1:
-        axes_shape = (2, int(np.ceil(len(all_means.keys()) / 2.)))
+    if n_graphs == 3:
+        axes_shape = (1, 3)
+
+    elif n_graphs > 1:
+        i_max = int(np.ceil(np.sqrt(len(all_means.keys()))))
+        axes_shape = (i_max, int(np.ceil(len(all_means.keys()) / i_max)))
     else:
         axes_shape = (1, 1)
 
-    fig, axes = create_fig(axes_shape)
+    # Creates figure
+
+    gs = gridspec.GridSpec(*axes_shape)
+    fig = plt.figure(figsize=(12 * axes_shape[1], 5 * axes_shape[0]))
 
     for i, task_name in enumerate(all_means.keys()):
 
         # Selects right ax object
 
         if axes_shape == (1, 1):
-            current_ax = axes
+            current_ax = fig.add_subplot(gs[0, 0])
         elif any(np.array(axes_shape) == 1):
-            current_ax = axes[i]
+            current_ax = fig.add_subplot(gs[0, i])
         else:
-            current_ax = axes[i // axes_shape[1], i % axes_shape[1]]
+            current_ax = fig.add_subplot(gs[i // axes_shape[1], i % axes_shape[1]])
+
+        # Collect algorithm names
+
+        if all([type(long_label) is pathlib.PosixPath for long_label in long_labels[task_name]]):
+            algs = []
+            for path in long_labels[task_name]:
+                _, _, alg, _, _ = DirectoryTree.extract_info_from_storage_name(path.name)
+                algs.append(alg)
+
+        # Sets visuals
+
+        if type(visuals) is dict and 'labels_dict' in visuals.keys():
+            labels[task_name] = [visuals['labels_dict'][alg] for alg in algs]
+        else:
+            labels[task_name] = long_labels[task_name]
+
+        if type(visuals) is dict and 'colors_dict' in visuals.keys():
+            colors[task_name] = [visuals['colors_dict'][alg] for alg in algs]
+        else:
+            colors[task_name] = [None for _ in long_labels[task_name]]
+
+        if type(visuals) is dict and 'markers_dict' in visuals.keys():
+            markers[task_name] = [visuals['markers_dict'][alg] for alg in algs]
+        else:
+            markers[task_name] = [None for _ in long_labels[task_name]]
+
+        logger.info(f"Graph for {task_name}:\n\tlabels={labels}\n\tcolors={colors}\n\tmarkers={markers}")
 
         # Makes the plots
 
-        plot_vertical_densities(current_ax, all_means[task_name], title=task_name, ylabel="average performance")
+        plot_vertical_densities(ax=current_ax,
+                                ys=list(all_means[task_name].values()),
+                                labels=labels[task_name],
+                                colors=colors[task_name],
+                                make_boxplot=make_box_plot,
+                                title=task_name.upper(),
+                                ylabel=y_metric)
 
     # Saves the figure
 
+    filename_addon = "boxplot" if make_box_plot else ""
+
     for storage_dir in storage_dirs:
         os.makedirs(storage_dir / save_dir, exist_ok=True)
-        fig.savefig(storage_dir / save_dir / f'{save_dir}_vertical_densities.png')
+
+        fig.savefig(storage_dir / save_dir / f'{save_dir}_vertical_densities_{filename_addon}.pdf',
+                    bbox_inches="tight")
+
         save_dict_to_json([str(storage_dir) in storage_dirs],
                           storage_dir / save_dir / f'{save_dir}_vertical_densities_sources.json')
 
@@ -446,34 +662,44 @@ def _make_vertical_densities_figure(storage_dirs, agent_i, save_dir, logger):
 
 # benchmark interface ---------------------------------------------------------------------------------------------
 
-def compare_models(storage_names, agent_i, n_benchmark_episodes, re_run_if_exists, logger, make_performance_chart=True,
-                   make_learning_plots=True):
+def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric, y_error_bars, visuals_file,
+                   performance_metric, performance_aggregation, make_performance_chart=True, make_learning_plots=True):
+    """
+    compare_models compare several storage_dirs
+    """
+
     assert type(storage_names) is list
 
     if make_learning_plots:
         logger.debug(f'\n{"benchmark_learning".upper()}:')
 
-        episodes = OrderedDict()
-        curves = OrderedDict()
+        x_data = OrderedDict()
+        y_data = OrderedDict()
         storage_dirs = []
 
         for storage_name in storage_names:
-            episodes, curves = _gather_experiments_training_curves(
-                storage_dir=DirectoryTree.root / storage_name,
-                agent_i=agent_i,
+            x_data, y_data = _gather_experiments_training_curves(
+                storage_dir=get_root(root_dir) / storage_name,
                 graph_key="task_name",
                 curve_key="storage_name",
                 logger=logger,
-                episodes=episodes,
-                curves=curves)
+                x_metric=x_metric,
+                y_metric=y_metric,
+                x_data=x_data,
+                y_data=y_data)
 
-            storage_dirs.append(DirectoryTree.root / storage_name)
+            storage_dirs.append(get_root(root_dir) / storage_name)
 
-        _make_benchmark_learning_figure(episodes=episodes,
-                                        curves=curves,
+        _make_benchmark_learning_figure(x_data=x_data,
+                                        y_data=y_data,
+                                        x_metric=x_metric,
+                                        y_metric=y_metric,
+                                        y_error_bars=y_error_bars,
                                         storage_dirs=storage_dirs,
                                         n_labels=np.inf,
-                                        save_dir="benchmark")
+                                        save_dir="benchmark",
+                                        logger=logger,
+                                        visuals_file=visuals_file)
 
     if make_performance_chart:
         logger.debug(f'\n{"benchmark_performance".upper()}:')
@@ -481,67 +707,80 @@ def compare_models(storage_names, agent_i, n_benchmark_episodes, re_run_if_exist
         storage_dirs = []
 
         for storage_name in storage_names:
-            _run_performance_benchmark(storage_dir=DirectoryTree.root / storage_name,
-                                       n_episodes=n_benchmark_episodes,
-                                       group_key="task_name",
-                                       bar_key="storage_name",
-                                       re_run_if_exists=re_run_if_exists,
-                                       save_dir="benchmark",
-                                       logger=logger)
+            _compute_seed_scores(storage_dir=get_root(root_dir) / storage_name,
+                                 performance_metric=performance_metric,
+                                 performance_aggregation=performance_aggregation,
+                                 n_eval_runs=n_eval_runs,
+                                 group_key="task_name",
+                                 bar_key="storage_name",
+                                 re_run_if_exists=re_run_if_exists,
+                                 save_dir="benchmark",
+                                 logger=logger,
+                                 root_dir=root_dir)
 
-            storage_dirs.append(DirectoryTree.root / storage_name)
+            storage_dirs.append(get_root(root_dir) / storage_name)
 
         _make_benchmark_performance_figure(storage_dirs=storage_dirs,
-                                           agent_i=agent_i,
                                            logger=logger,
                                            normalize_with_first_model=True,
                                            sort_bars=False,
-                                           std_error=True,
-                                           quantile=0.10,
+                                           y_error_bars=y_error_bars,
                                            save_dir="benchmark")
 
     return
 
 
-def summarize_search(storage_name, agent_i, n_benchmark_episodes, re_run_if_exists, logger, make_performance_chart=True,
-                     make_learning_plots=True):
+def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric, y_error_bars,
+                     performance_metric, performance_aggregation, make_performance_chart=True,
+                     make_learning_plots=True, visuals_file=None):
+    """
+    Summaries act inside a single storage_dir
+    """
+
     assert type(storage_name) is str
 
-    storage_dir = DirectoryTree.root / storage_name
+    storage_dir = get_root(root_dir) / storage_name
 
     if make_learning_plots:
         logger.debug(f'\n{"benchmark_learning".upper()}:')
 
-        episodes, curves = _gather_experiments_training_curves(storage_dir=storage_dir,
-                                                               agent_i=agent_i,
-                                                               graph_key="task_name",
-                                                               curve_key="experiment_num",
-                                                               logger=logger)
+        x_data, y_data = _gather_experiments_training_curves(storage_dir=storage_dir,
+                                                             graph_key="task_name",
+                                                             curve_key="experiment_num",
+                                                             logger=logger,
+                                                             x_metric=x_metric,
+                                                             y_metric=y_metric)
 
-        _make_benchmark_learning_figure(episodes=episodes,
-                                        curves=curves,
+        _make_benchmark_learning_figure(x_data=x_data,
+                                        y_data=y_data,
+                                        x_metric=x_metric,
+                                        y_metric=y_metric,
+                                        y_error_bars=y_error_bars,
                                         storage_dirs=[storage_dir],
                                         n_labels=10,
-                                        save_dir="summary")
+                                        save_dir="summary",
+                                        logger=logger,
+                                        visuals_file=None)
 
     if make_performance_chart:
         logger.debug(f'\n{"benchmark_performance".upper()}:')
 
-        _run_performance_benchmark(storage_dir=storage_dir,
-                                   n_episodes=n_benchmark_episodes,
-                                   group_key="experiment_num",
-                                   bar_key="storage_name",
-                                   re_run_if_exists=re_run_if_exists,
-                                   save_dir="summary",
-                                   logger=logger)
+        _compute_seed_scores(storage_dir=storage_dir,
+                             n_eval_runs=n_eval_runs,
+                             performance_metric=performance_metric,
+                             performance_aggregation=performance_aggregation,
+                             group_key="experiment_num",
+                             bar_key="storage_name",
+                             re_run_if_exists=re_run_if_exists,
+                             save_dir="summary",
+                             logger=logger,
+                             root_dir=root_dir)
 
         sorted_inner_keys = _make_benchmark_performance_figure(storage_dirs=[storage_dir],
-                                                               agent_i=agent_i,
                                                                logger=logger,
                                                                normalize_with_first_model=False,
                                                                sort_bars=True,
-                                                               quantile=0.10,
-                                                               std_error=True,
+                                                               y_error_bars=y_error_bars,
                                                                save_dir="summary")
 
         best_experiment_num = sorted_inner_keys[0]
@@ -552,26 +791,42 @@ def summarize_search(storage_name, agent_i, n_benchmark_episodes, re_run_if_exis
     return
 
 
-def compare_searches(storage_names, agent_i, re_run_if_exists, logger):
+def compare_searches(storage_names, visuals_file, re_run_if_exists, y_error_bars, logger, root_dir):
+    """
+    compare_searches compare several storage_dirs
+    """
+
     assert type(storage_names) is list
 
     logger.debug(f'\n{"benchmark_vertical_densities".upper()}:')
 
     storage_dirs = []
     for storage_name in storage_names:
-        storage_dirs.append(DirectoryTree.root / storage_name)
+        storage_dirs.append(get_root(root_dir) / storage_name)
 
     for storage_dir in storage_dirs:
-        if not (storage_dir / "summary" / f"summary_performance_data.pkl").exists() or re_run_if_exists:
+        if not (storage_dir / "summary" / f"summary_seed_scores.pkl").exists() or re_run_if_exists:
             summarize_search(storage_name=storage_dir.name,
-                             agent_i=0,
-                             n_benchmark_episodes=100,
+                             n_eval_runs=None,
+                             x_metric="episode",
+                             y_metric="eval_return",
+                             y_error_bars="y_error_bars",
+                             performance_metric="avg_eval_return",
+                             performance_aggregation="last",
                              re_run_if_exists=re_run_if_exists,
                              make_performance_chart=True,
                              make_learning_plots=True,
-                             logger=logger)
+                             logger=logger,
+                             root_dir=root_dir,
+                             visuals_file=visuals_file)
 
-    _make_vertical_densities_figure(storage_dirs, agent_i=agent_i, save_dir="summary", logger=logger)
+    _make_vertical_densities_figure(storage_dirs=storage_dirs,
+                                    visuals_file=visuals_file,
+                                    make_box_plot=True,
+                                    y_metric="eval_return",
+                                    load_dir="summary",
+                                    save_dir="benchmark",
+                                    logger=logger)
 
     return
 
@@ -579,28 +834,57 @@ def compare_searches(storage_names, agent_i, re_run_if_exists, logger):
 if __name__ == '__main__':
     benchmark_args = get_benchmark_args()
     logger = create_logger(name="BENCHMARK - MAIN", loglevel=logging.DEBUG)
-    if benchmark_args.storage_names is None:
-        if benchmark_args.benchmark_type == 'compare_models':
-            benchmark_args.storage_names = official_benchmark_lists.retrains_list
-        elif benchmark_args.benchmark_type == 'compare_searches':
-            benchmark_args.storage_names = official_benchmark_lists.searches_list
-        else:
-            raise ValueError
+
+    # Checks how the list of storage_names to act on is provided
+
+    visuals_file = None
+
+    if benchmark_args.storage_names is None and benchmark_args.from_file is None:
+        raise ValueError("One of --storage_names or --from_file must be defined for benchmark.py to know what to work on")
+
+    if benchmark_args.storage_names is not None:
+        assert benchmark_args.from_file is None, "If --storage_names is defined, from_file must be None."
+
+    if benchmark_args.from_file is not None:
+        assert benchmark_args.storage_names is None, "If --from_file is defined, storage_names must be None."
+
+        # Get storage_names to benchmark
+
+        with open(benchmark_args.from_file, "r") as f:
+            storage_names = f.readlines()
+        benchmark_args.storage_names = [sto_name.strip('\n') for sto_name in storage_names]
+
+        # Gets path of visuals_file
+
+        schedule_name = Path(benchmark_args.from_file).parent.stem
+        visuals_file = Path(benchmark_args.from_file).parent / f"visuals_{schedule_name}.json"
+        if not visuals_file.exists():
+            visuals_file = None
+
+    # Launches the requested benchmark type (comparing searches [vertical densities] or comparing final models [learning curves])
 
     if benchmark_args.benchmark_type == "compare_models":
         compare_models(storage_names=benchmark_args.storage_names,
-                       agent_i=benchmark_args.agent_i,
-                       n_benchmark_episodes=benchmark_args.n_episodes,
-                       make_performance_chart=True,
+                       x_metric="episode",
+                       y_metric="eval_return",
+                       y_error_bars=benchmark_args.y_error_bars,
+                       visuals_file=visuals_file,
+                       n_eval_runs=benchmark_args.n_eval_runs,
+                       performance_metric=benchmark_args.performance_metric,
+                       performance_aggregation=benchmark_args.performance_aggregation,
+                       make_performance_chart=False,  # TODO: add support for that chart in a compare_models context
                        make_learning_plots=True,
                        re_run_if_exists=benchmark_args.re_run_if_exists,
-                       logger=logger)
+                       logger=logger,
+                       root_dir=get_root(benchmark_args.root_dir))
 
     elif benchmark_args.benchmark_type == "compare_searches":
         compare_searches(storage_names=benchmark_args.storage_names,
-                         agent_i=benchmark_args.agent_i,
+                         y_error_bars=benchmark_args.y_error_bars,
+                         visuals_file=visuals_file,
                          re_run_if_exists=benchmark_args.re_run_if_exists,
-                         logger=logger)
+                         logger=logger,
+                         root_dir=get_root(benchmark_args.root_dir))
 
     else:
-        raise NotImplemented
+        raise NotImplementedError

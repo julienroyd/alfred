@@ -1,8 +1,9 @@
 import numpy as np
-from math import floor, log10
 from collections import OrderedDict
-from alfred.utils.misc import round_to_two
-
+from alfred.utils.misc import keep_two_signif_digits, check_params_defined_twice
+from alfred.utils.directory_tree import DirectoryTree
+from pathlib import Path
+import packageName
 
 # (1) Enter the algorithms to be run for each experiment
 
@@ -17,8 +18,11 @@ TASK_NAMES = ['MNIST']
 N_SEEDS = 3
 SEEDS = [1 + x for x in range(N_SEEDS)]
 
+# (4) Enter the number of experiments to sample
 
-# (4) Hyper-parameters. For each hyperparam, enter the function that you want the random-search to sample from.
+N_EXPERIMENTS = 50
+
+# (5) Hyper-parameters. For each hyperparam, enter the function that you want the random-search to sample from.
 #     For each experiment, a set of hyperparameters will be sampled using these functions
 
 # Examples:
@@ -41,10 +45,17 @@ def sample_experiment():
    assert "task_name" not in sampled_config.keys()
 
    # Simple security check to make sure every specified parameter is defined only once
-   keys = list(sampled_config.keys())
-   counted_keys = {key: keys.count(key) for key in keys}
-   for key in counted_keys.keys():
-       if counted_keys[key] > 1:
-           raise ValueError(f'Parameter "{key}" appears {counted_keys[key]} times in the schedule.')
 
-   return sampled_config
+   check_params_defined_twice(keys=list(sampled_config.keys()))
+
+# Function that returns the hyperparameters for the current search
+
+def get_run_args(overwritten_cmd_line):
+   raise NotADirectoryError
+
+
+# Setting up alfred's DirectoryTree
+
+DirectoryTree.default_root = "./storage"
+DirectoryTree.git_repos_to_track['mlProject'] = str(Path(__file__).parents[2])
+DirectoryTree.git_repos_to_track['someDependency'] = str(Path(packageName.__file__).parents[1])
