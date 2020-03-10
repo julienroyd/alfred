@@ -89,14 +89,13 @@ def clean_interrupted(from_file, storage_name, clean_crashes, over_tasks, ask_fo
 
             for seed_dir in seeds_to_clean:
                 logger.info(f"Cleaning {seed_dir}")
-                paths = seed_dir.iterdir()
-                for path in paths:
-                    if path.is_dir() and path.name in ["recorders", "incrementals"]:
-                        shutil.rmtree(path)
-                    elif path.is_dir() and path.name == "wandb":
-                        shutil.rmtree(path)
-                    elif path.name not in ["config.json", "config_unique.json"]:
-                        os.remove(str(path))
+
+                for path in seed_dir.iterdir():
+                    if path.name not in ["config.json", "config_unique.json"]:
+                        if path.is_dir():
+                            shutil.rmtree(path)
+                        else:
+                            os.remove(path)
                     else:
                         continue
 
@@ -105,15 +104,6 @@ def clean_interrupted(from_file, storage_name, clean_crashes, over_tasks, ask_fo
 
         else:
             logger.info('No seed_dir to clean.')
-
-        # Clean the summary directory
-
-        if (storage_dir / "summary").exists() and not (storage_dir / "summary" / "SUMMARY_COMPLETED").exists():
-            logger.info(f"Cleaning {storage_dir}/summary:")
-            files = (storage_dir / "summary").iterdir()
-            for file in files:
-                os.remove(str(file))
-            os.rmdir(str(storage_dir / "summary"))
 
         # Clean flag-file
 
