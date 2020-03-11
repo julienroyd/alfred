@@ -156,8 +156,10 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
 
                 # Creates comparative plots
 
-                if not (storage_dir / 'MAKING_COMPARATIVE_PLOTS').exists():
-                    open(str(storage_dir / 'MAKING_COMPARATIVE_PLOTS'), 'w+').close()
+                if not (storage_dir / 'COMPARATIVE_PLOTS_ONGOING').exists() \
+                        and not (storage_dir / 'COMPARATIVE_PLOTS_COMPLETED').exists():
+
+                    open(str(storage_dir / 'COMPARATIVE_PLOTS_ONGOING'), 'w+').close()
                     logger.info(f"{storage_dir.name}: MAKING COMPARATIVE PLOTS")
 
                     try:
@@ -167,11 +169,13 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
                                                   root_dir=root_dir,
                                                   logger=logger)
 
+                        open(str(storage_dir / 'COMPARATIVE_PLOTS_COMPLETED'), 'w+').close()
+
                     except Exception as e:
                         logger.info(f"{type(e)}: unable to plot comparative graphs"
                                     f"\n\n{e}\n{traceback.format_exc()}")
 
-                    os.remove(str(storage_dir / 'MAKING_COMPARATIVE_PLOTS'))
+                    os.remove(str(storage_dir / 'COMPARATIVE_PLOTS_ONGOING'))
 
                 # If all experiments are completed benchmark them
 

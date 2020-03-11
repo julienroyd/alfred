@@ -107,8 +107,8 @@ def clean_interrupted(from_file, storage_name, clean_crashes, over_tasks, ask_fo
 
         # Clean flag-file
 
-        if (storage_dir / "MAKING_COMPARATIVE_PLOTS").exists():
-            os.remove(str(storage_dir / "MAKING_COMPARATIVE_PLOTS"))
+        if (storage_dir / "COMPARATIVE_PLOTS_ONGOING").exists():
+            os.remove(str(storage_dir / "COMPARATIVE_PLOTS_ONGOING"))
 
 
 if __name__ == '__main__':
