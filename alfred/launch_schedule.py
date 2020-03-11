@@ -91,7 +91,7 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
                 if len(unhatched_seeds) > 0:
                     seed_dir = unhatched_seeds[0]
                 else:
-                    logger.info(f"{storage_dir.name}: No more unhatched seeds")
+                    logger.info(f"{storage_dir} - No more unhatched seeds")
                     break
 
                 # Removes its unhatched flag
@@ -99,7 +99,7 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
                 try:
                     os.remove(str(seed_dir / 'UNHATCHED'))
                 except:
-                    logger.info(f"{seed_dir}: Already hatched")
+                    logger.info(f"{seed_dir} - Already hatched")
                     continue
 
                 # Load the config and try to train the model
@@ -124,9 +124,7 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
                     else:
                         pbar = None
 
-                    logger.info(
-                        f"{dir_tree.storage_dir.name}/{dir_tree.experiment_dir.name}/{dir_tree.seed_dir.name} - "
-                        f"Launching...")
+                    logger.info(f"{seed_dir} - Launching...")
 
                     main(config=config, dir_tree=dir_tree, logger=experiment_logger, pbar=pbar)
 
@@ -135,7 +133,7 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
 
                     end_time = time.time()
                     logger.info(
-                        f"{dir_tree.storage_dir.name}/{dir_tree.experiment_dir.name}/{dir_tree.seed_dir.name} - "
+                        f"{seed_dir} - "
                         f"COMPLETED ({formatted_time_diff(total_time_seconds=end_time - start_time)} elapsed)"
                     )
 
@@ -160,7 +158,7 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
                         and not (storage_dir / 'COMPARATIVE_PLOTS_COMPLETED').exists():
 
                     open(str(storage_dir / 'COMPARATIVE_PLOTS_ONGOING'), 'w+').close()
-                    logger.info(f"{storage_dir.name}: MAKING COMPARATIVE PLOTS")
+                    logger.info(f"{storage_dir} - MAKING COMPARATIVE PLOTS")
 
                     try:
                         create_comparative_figure(from_file=None,
@@ -185,7 +183,7 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
                             and not (storage_dir / "summary" / "SUMMARY_COMPLETED").exists():
                         os.makedirs(str(storage_dir / "summary"), exist_ok=True)
                         open(str(storage_dir / "summary" / 'SUMMARY_ONGOING'), 'w+').close()
-                        logger.info(f"{storage_dir.name}: SUMMARIZING SEARCH")
+                        logger.info(f"{storage_dir} - SUMMARIZING SEARCH")
 
                         try:
                             summarize_search(storage_name=storage_dir.name,
