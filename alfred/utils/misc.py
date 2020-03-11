@@ -118,3 +118,10 @@ def select_storage_dirs(from_file, storage_name, over_tasks, root_dir):
         raise NotImplementedError("storage_dirs to operate over must be specified either by --from_file or --storage_name")
 
     return storage_dirs
+
+
+def formatted_time_diff(total_time_seconds):
+    n_hours = int(total_time_seconds // 3600)
+    n_minutes = int((total_time_seconds - n_hours * 3600) // 60)
+    n_seconds = int(total_time_seconds - n_hours * 3600 - n_minutes * 60)
+    return f"{n_hours}h{str(n_minutes).zfill(2)}m{str(n_seconds).zfill(2)}s"
