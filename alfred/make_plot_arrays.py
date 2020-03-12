@@ -14,7 +14,7 @@ from alfred.utils.recorder import Recorder
 from alfred.utils.plots import plot_curves
 from alfred.utils.directory_tree import DirectoryTree
 
-COMPARATIVE_PLOTS_TO_MAKE = [('total_steps', 'eval_return')]
+PLOTS_TO_MAKE = [('total_steps', 'eval_return')]
 
 
 def get_make_plots_args():
@@ -24,14 +24,14 @@ def get_make_plots_args():
 
     parser.add_argument('--storage_name', type=str, default=None)
     parser.add_argument('--over_tasks', type=parse_bool, default=False,
-                        help="If true, make_comparative_plots will look for all storage_dir "
+                        help="If true, make_plot_arrays will look for all storage_dir "
                              "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
 
     parser.add_argument('--root_dir', default=None, type=str)
     return parser.parse_args()
 
 
-def create_comparative_figure(from_file, storage_name, over_tasks, root_dir, logger):
+def create_plot_arrays(from_file, storage_name, over_tasks, root_dir, logger):
     """
     Creates and and saves comparative figure containing a plot of total reward for each different experiment
     :param storage_dir: pathlib.Path object of the model directory containing the experiments to compare
@@ -130,7 +130,7 @@ def create_comparative_figure(from_file, storage_name, over_tasks, root_dir, log
             else:
                 first_seed_idx = 0
 
-            for x_metric, y_metric in COMPARATIVE_PLOTS_TO_MAKE:
+            for x_metric, y_metric in PLOTS_TO_MAKE:
                 logger.debug(f'\n{y_metric.upper()} as a function of {x_metric.upper()}:')
 
                 # Creates the subplots
@@ -225,4 +225,4 @@ def create_comparative_figure(from_file, storage_name, over_tasks, root_dir, log
 if __name__ == '__main__':
     logger = create_logger("PLOTS", logging.DEBUG, logfile=None)
     kwargs = vars(get_make_plots_args())
-    create_comparative_figure(**kwargs, logger=logger)
+    create_plot_arrays(**kwargs, logger=logger)

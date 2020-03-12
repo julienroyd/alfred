@@ -28,7 +28,7 @@ import random
 from alfred.utils.config import load_config_from_json, parse_bool, parse_log_level
 from alfred.utils.directory_tree import *
 from alfred.utils.misc import create_logger, create_new_filehandler, select_storage_dirs, formatted_time_diff
-from alfred.make_comparative_plots import create_comparative_figure
+from alfred.make_plot_arrays import create_plot_arrays
 from alfred.clean_interrupted import clean_interrupted
 from alfred.benchmark import summarize_search
 
@@ -161,11 +161,11 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
                     logger.info(f"{storage_dir} - MAKING COMPARATIVE PLOTS")
 
                     try:
-                        create_comparative_figure(from_file=None,
-                                                  storage_name=storage_dir.name,
-                                                  over_tasks=False,
-                                                  root_dir=root_dir,
-                                                  logger=logger)
+                        create_plot_arrays(from_file=None,
+                                           storage_name=storage_dir.name,
+                                           over_tasks=False,
+                                           root_dir=root_dir,
+                                           logger=logger)
 
                         open(str(storage_dir / 'COMPARATIVE_PLOTS_COMPLETED'), 'w+').close()
 
