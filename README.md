@@ -129,9 +129,55 @@ The spirit of this codebase is to have project-agnostic scripts that can be call
 
 ### Directory Tree
 
-The directory-tree used by alfred is defined in the class `alfred.utils.directory_tree.DirectoryTree`.
+The directory-tree used by alfred is defined in the class `alfred.utils.directory_tree.DirectoryTree`. An example of how it could be laid out for a Reinforcement Learning experiment is shown below. Note that all these files would be automatically created either by `alfred's scripts` or by `my_ml_project`.
 
-TODO: add description
+```
+    ├─── root_dir
+    │
+    │    └─── Ju1_f7b375e-58332a7_ppo_cartpole_random_benchmarkv1
+    │    └─── Ju2_f7b375e-58332a7_ppo_mountaincar_random_benchmarkv1
+    │    └─── Ju3_f7b375e-58332a7_sac_cartpole_random_benchmarkv1
+    |         └─── experiment1
+    |         └─── experiment2
+    |              └─── seed123
+    |                   └─── config.json
+    |                   └─── config_unique.json
+    |                   └─── UNHATCHED
+    |                   └─── model.pt
+    |              └─── seed456
+    |                   └─── config.json
+    |                   └─── config_unique.json
+    |                   └─── COMPLETED
+    |                   └─── logger.out
+    |                   └─── graph.png
+    |                   └─── recorders
+    |                        └─── train_recorder.pkl
+    |                        └─── other_data.pkl
+    |              └─── seed789
+    |                   └─── config.json
+    |                   └─── config_unique.json
+    |                   └─── CRASH.txt
+    |                   └─── logger.out
+    |         └─── experiment3
+    |         └─── experiment4
+    |         └─── experiment5
+    |         └─── summary
+    |         └─── eval_return_over_episodes.png
+    |         └─── PLOT_ARRAYS_COMPLETED
+    │    └─── Ju4_f7b375e-58332a7_sac_mountaincar_random_benchmarkv1
+```
+The whole directory-tree is a result of `alfred.prepare_schedule`. It uses a file defining your search and creates the experiment directories accordingly (see `alfred/schedules_examples` for an example of such files).
+
+* `root_dir`: Root-directory. By default it uses `DirectoryTree.default_root`. This default can be overwrited when importing alfred in `,y_ml_project`, or the `--root_dir` can be passed in argument to all `alfred's scripts`.
+* `Ju1_f7b375e-58332a7_ppo_cartpole_random_benchmarkv3`: Storage-directory. It is composed of:
+  * `Ju1`: the storage-id (defined automatically from git-username and ordinal numbering)
+  * `f7b375e-58332a7`: git-hashes of packages being tracked by alfred. These are defined in `my_ml_project` by giving the path to .git file to alfred, e.g.: `DirectoryTree.git_repos_to_track['mlProject'] = str(Path(__file__).parents[2])`.
+  * `ppo`: Algorithm-name. Defined in schedule-file and `my_ml_project`.
+  * `cartpole`: Task-name. Defined in schedule-file and `my_ml_project`.
+  * `random`: Search-type. Defined in `alfred.prepare_schedule` from the provided `schedule_file`.
+  * `benchmarkv1`: Description. Passed as argument to `alfred.prepare_schedule`.
+* `experiment1`: Experiment-directory. All leaves of an experiment-dir have the same `config.json` except for the `seed`.
+* `seed123`: Seed-directory. The folder for each particular (unique) run. See it as an egg ready to hatch. These eggs are prepared by `alfred.prepare_schedule`, and they will be executed by `alfred.launch_schedule`. In this example, we see that `seed123` has not been run yet, `seed456` has completed and `seed789` has crashed.
 
 ### FLAG-files
 
