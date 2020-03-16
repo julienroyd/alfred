@@ -732,7 +732,7 @@ def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_di
 
 def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric, y_error_bars,
                      performance_metric, performance_aggregation, make_performance_chart=True,
-                     make_learning_plots=True, visuals_file=None):
+                     make_learning_plots=True):
     """
     Summaries act inside a single storage_dir
     """
@@ -810,15 +810,14 @@ def compare_searches(storage_names, visuals_file, re_run_if_exists, y_error_bars
                              n_eval_runs=None,
                              x_metric="episode",
                              y_metric="eval_return",
-                             y_error_bars="y_error_bars",
+                             y_error_bars=y_error_bars,
                              performance_metric="avg_eval_return",
                              performance_aggregation="last",
                              re_run_if_exists=re_run_if_exists,
                              make_performance_chart=True,
                              make_learning_plots=True,
                              logger=logger,
-                             root_dir=root_dir,
-                             visuals_file=visuals_file)
+                             root_dir=root_dir)
 
     _make_vertical_densities_figure(storage_dirs=storage_dirs,
                                     visuals_file=visuals_file,
