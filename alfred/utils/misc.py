@@ -3,6 +3,7 @@ import sys
 from math import floor, log10
 import re
 from tqdm import tqdm
+from pathlib import Path
 
 from alfred.utils.config import config_to_str
 from alfred.utils.directory_tree import DirectoryTree, get_root, get_storage_dirs_across_tasks
@@ -94,6 +95,9 @@ def select_storage_dirs(from_file, storage_name, over_tasks, root_dir):
     if from_file is not None:
         assert storage_name is None, "If launching --from_file, no storage_name should be provided"
         assert over_tasks is False, "--over_tasks is not allowed when running --from_file"
+        assert Path(from_file).suffix == '.txt', f"The provided --from_file should be a text file listing " \
+                                                 f"storage_name's of directories to act on. " \
+                                                 f"You provided '--from_file={from_file}'"
 
     if storage_name is not None or over_tasks is not False:
         assert from_file is None, "Cannot launch --from_file if --storage_name or --over_tasks is defined"

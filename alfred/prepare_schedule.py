@@ -166,6 +166,10 @@ def prepare_schedule(desc, schedule_file, root_dir, add_to_folder, resample, log
 
     schedule_file_path = Path(schedule_file)
 
+    assert schedule_file_path.suffix == '.py', f"The provided --schedule_file should be a python file " \
+                                               f"(see: alfred/schedule_examples). You provided " \
+                                               f"'--schedule_file={schedule_file}'"
+
     if "grid_schedule" in schedule_file_path.name:
         search_type = 'grid'
     elif "random_schedule" in schedule_file_path.name:
