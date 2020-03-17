@@ -109,7 +109,7 @@ def create_retrain_best(from_file, storage_name, over_tasks, n_retrain_seeds, ro
 
                 # Gets new storage_name_id
 
-                tmp_dir_tree = DirectoryTree(alg_name="", task_name="", desc="", seed=1)
+                tmp_dir_tree = DirectoryTree(alg_name="", task_name="", desc="", seed=1, root=root_dir)
                 retrain_storage_id = tmp_dir_tree.storage_dir.name.split('_')[0]
 
                 # Creates the new storage_dir for retrainBest
