@@ -48,7 +48,7 @@ def bar_chart(ax, scores, err_up=None, err_down=None, capsize=10., colors=None,
 def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, markevery=None, labels=None,
                 xlabel="", ylabel="", axis_font_size=22, tick_font_size=18, title="", title_font_size=24,
                 fill_up=None, fill_down=None, alpha_fill=0.1, smooth=False, add_legend=True, legend_underneath=False,
-                legend_font_size=20, legend_pos=(-0.5, -0.2)):
+                legend_font_size=20, legend_pos=(0.5, -0.2), legend_loc="upper center"):
     if xs is None:
         xs = [range(len(y)) for y in ys]
 
@@ -100,7 +100,7 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
 
         if legend_underneath:
             if add_legend:
-                legend = ax.legend(loc='upper left', framealpha=0.25, bbox_to_anchor=legend_pos,
+                legend = ax.legend(loc=legend_loc, framealpha=0.25, bbox_to_anchor=legend_pos,
                                    fancybox=True, shadow=False, ncol=len(ys), fontsize=legend_font_size)
                 for legobj in legend.legendHandles:
                     legobj.set_linewidth(2.0)
@@ -108,7 +108,7 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
                     text.set_ha('left')
 
         else:
-            ax.legend(loc='upper left', framealpha=0.25, fancybox=True, shadow=False)
+            ax.legend(loc=legend_loc, framealpha=0.25, fancybox=True, shadow=False)
 
     return
 

@@ -522,7 +522,9 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                     ylabel=y_metric,
                     title=outer_key.upper(),
                     add_legend=True if i==(len(list(y_data.keys())) - 1) else False,
-                    legend_underneath=True)
+                    legend_underneath=True,
+                    legend_loc="upper right",
+                    legend_pos=(1., -0.2))
 
     for storage_dir in storage_dirs:
         os.makedirs(storage_dir / save_dir, exist_ok=True)
