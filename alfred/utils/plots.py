@@ -71,7 +71,7 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
         # Adds filling around curve (central tendency)
 
         if fill_up is not None and fill_down is not None:
-            ax.plot(x, y, color=colors[i], label=labels[i])
+            ax.plot(x, y, color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize,  label=labels[i])
             ax.fill_between(x, y - fill_down[i], y + fill_up[i], color=colors[i], alpha=alpha_fill)
 
         # Smooth curve using running average

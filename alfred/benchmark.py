@@ -528,7 +528,7 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
 
     for storage_dir in storage_dirs:
         os.makedirs(storage_dir / save_dir, exist_ok=True)
-        fig.savefig(storage_dir / save_dir / f'{save_dir}_learning.png', bbox_inches='tight')
+        fig.savefig(storage_dir / save_dir / f'{save_dir}_learning.pdf', bbox_inches='tight')
 
     plt.close(fig)
 
