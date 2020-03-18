@@ -793,7 +793,7 @@ def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_d
     return
 
 
-def compare_searches(storage_names, visuals_file, re_run_if_exists, y_error_bars, logger, root_dir):
+def compare_searches(storage_names, y_error_bars, performance_metric, performance_aggregation, visuals_file, re_run_if_exists, logger, root_dir):
     """
     compare_searches compare several storage_dirs
     """
@@ -813,8 +813,8 @@ def compare_searches(storage_names, visuals_file, re_run_if_exists, y_error_bars
                              x_metric="episode",
                              y_metric="eval_return",
                              y_error_bars=y_error_bars,
-                             performance_metric="avg_eval_return",
-                             performance_aggregation="last",
+                             performance_metric=performance_metric,
+                             performance_aggregation=performance_aggregation,
                              re_run_if_exists=re_run_if_exists,
                              make_performance_chart=True,
                              make_learning_plots=True,
@@ -882,6 +882,8 @@ if __name__ == '__main__':
     elif benchmark_args.benchmark_type == "compare_searches":
         compare_searches(storage_names=benchmark_args.storage_names,
                          y_error_bars=benchmark_args.y_error_bars,
+                         performance_metric=benchmark_args.performance_metric,
+                         performance_aggregation=benchmark_args.performance_aggregation,
                          visuals_file=visuals_file,
                          re_run_if_exists=benchmark_args.re_run_if_exists,
                          logger=logger,
