@@ -98,7 +98,7 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
 
                 try:
                     os.remove(str(seed_dir / 'UNHATCHED'))
-                except:
+                except FileNotFoundError:
                     logger.info(f"{seed_dir} - Already hatched")
                     continue
 
@@ -242,7 +242,12 @@ def launch_schedule(from_file, storage_name, over_tasks, n_processes, n_experime
     for storage_dir in storage_dirs:
         master_logger.debug(storage_dir)
 
-    for storage_dir in storage_dirs:
+    for i, storage_dir in enumerate(storage_dirs):
+
+        if not storage_dir.exists():
+            master_logger.warning(f'DIRECTORY NOT FOUND: repository {storage_dir} cannot be found: REMOVED FROM LIST')
+            del(storage_dirs[i])
+            continue
 
         # Checks if code hash matches the folder to be run_schedule
 
@@ -257,8 +262,10 @@ def launch_schedule(from_file, storage_name, over_tasks, n_processes, n_experime
 
             for i, (name, hash) in enumerate(current_git_hashes.items()):
                 if hash not in storage_name_git_hash_list:
-                    raise ValueError(f"Repository '{name}' hash is: {hash}. "
-                                     f"You are running a storage_dir with '{name}' hash: {storage_name_git_hash_list[i]}")
+                    master_logger.warning(f"WRONG HASH: repository '{name}' current hash ({hash}) does not match "
+                                          f"storage_dir hash ({storage_name_git_hash_list[i]}): REMOVED FROM LIST")
+                    del (storage_dirs[i])
+                    break
 
     # Log some info
 
