@@ -6,7 +6,7 @@ from alfred.utils.misc import create_logger
 from alfred.utils.directory_tree import *
 
 
-def get_clean_interrupted_args():
+def get_synch_wandb_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--root_dir', default=None, type=str,
                         help="The starting directory, the script will try to sync all child directory"
@@ -14,21 +14,17 @@ def get_clean_interrupted_args():
     parser.add_argument('--tag', type=str, default="",
                         help="Will try to push only the child directories which name contains the tag"
                              " if default then try to push all child directories")
-    parser.add_argument('--env_activation', type=str, default="",
-                        help="Command line to activate the corresponding python env (e.g. 'activate irl'")
     parser.add_argument('--ask_for_validation', type=parse_bool, default=True)
+    parser.add_argument('--project', type=str, default='il_without_rl', help="Project you want to upload to")
+    parser.add_argument('--entity', type=str, default='irl_la_forge', help="Entity you want to upload to")
 
     return parser.parse_args()
 
 
-def sync_wandb(root_dir, tag, ask_for_validation, env_activation, logger):
+def sync_wandb(root_dir, tag, ask_for_validation, project, entity, logger):
     # Define sync command line
 
-    if not env_activation == "":
-        command_line = f"{env_activation} && wandb sync wandb/"
-
-    else:
-        command_line = "wandb sync wandb/"
+    command_line = f"wandb sync --project {project} --entity {entity} "
 
     if not os.name == "posix":
         command_line = command_line.split(" ")
@@ -39,7 +35,7 @@ def sync_wandb(root_dir, tag, ask_for_validation, env_activation, logger):
 
     child_dirs = [child for child in root.iterdir() if tag in child.name]
 
-    info_string = "Folders to be synced : \n"
+    info_string = f"Folders to be synced to {entity}\{project}: \n"
 
     for child in child_dirs:
         info_string += str(child) + "\n"
@@ -55,21 +51,22 @@ def sync_wandb(root_dir, tag, ask_for_validation, env_activation, logger):
             logger.debug("Aborting...")
             return
 
-        logger.debug("Starting...")
+        logger.info("Starting...")
 
     for child in child_dirs:
 
         # get all wandb folders
 
-        wandb_dirs = child.glob('**/wandb')
+        wandb_dirs = child.glob('**/wandb/*run*/')
 
         for to_sync in wandb_dirs:
-            subprocess.run(command_line, shell=True, cwd=str(to_sync.parent))
+            logger.info(subprocess.run(command_line + str(to_sync.name), shell=True, cwd=str(to_sync.parent),
+                                       check=True))
 
         logger.info(f'Storage {child} has been synced \n')
 
 
 if __name__ == '__main__':
-    kwargs = vars(get_clean_interrupted_args())
+    kwargs = vars(get_synch_wandb_args())
     logger = create_logger(name="SYNCH TO WANDB", loglevel=logging.INFO)
     sync_wandb(**kwargs, logger=logger)
