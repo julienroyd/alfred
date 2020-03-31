@@ -30,6 +30,10 @@ def clean_interrupted(from_file, storage_name, clean_crashes, over_tasks, ask_fo
 
     storage_dirs = select_storage_dirs(from_file, storage_name, over_tasks, root_dir)
 
+    # Sanity-check that storages exist
+
+    storage_dirs = [storage_dir for storage_dir in storage_dirs if sanity_check_exists(storage_dir, logger)]
+
     # For all storage_dirs...
 
     for storage_dir in storage_dirs:

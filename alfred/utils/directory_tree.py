@@ -3,6 +3,7 @@ import subprocess
 from pathlib import Path
 from collections import OrderedDict
 
+
 def get_root(root=None):
     return Path(root) if root is not None else Path(DirectoryTree.default_root)
 
@@ -217,3 +218,28 @@ def get_git_name():
 
     except subprocess.CalledProcessError:
         return 'NoGitUsr'
+
+
+def sanity_check_hash(storage_dir, master_logger):
+    current_git_hashes = {}
+    for name, repo in DirectoryTree.git_repos_to_track.items():
+        current_git_hashes[name] = get_git_hash(path=repo)
+
+    _, storage_name_git_hashes, _, _, _ = DirectoryTree.extract_info_from_storage_name(storage_dir.name)
+    storage_name_git_hash_list = storage_name_git_hashes.split("-")
+
+    for i, (name, hash) in enumerate(current_git_hashes.items()):
+        if hash not in storage_name_git_hash_list:
+            master_logger.warning(f"WRONG HASH: repository '{name}' current hash ({hash}) does not match "
+                                  f"storage_dir hash ({storage_name_git_hash_list[i]}): REMOVED FROM LIST")
+            return False
+
+    return True
+
+
+def sanity_check_exists(storage_dir, master_logger):
+    if not storage_dir.exists():
+        master_logger.warning(f'DIRECTORY NOT FOUND: repository {storage_dir} cannot be found: REMOVED FROM LIST')
+        return False
+    else:
+        return True

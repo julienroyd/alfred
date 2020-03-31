@@ -234,8 +234,20 @@ def launch_schedule(from_file, storage_name, over_tasks, n_processes, n_experime
                                   logfile=None,
                                   streamHandle=True)
 
+    # Sanity-checks that storage_dirs exist if not they are skipped
+
+    storage_dirs = [storage_dir for storage_dir in storage_dirs if sanity_check_exists(storage_dir, master_logger)]
+
+    # Sanity-check that storage_dirs have correct hash is required
+
+    if check_hash:
+        storage_dirs = [storage_dir for storage_dir in storage_dirs if sanity_check_hash(storage_dir, master_logger)]
+
+    # Continues with sanity-checked storage_dir list
+
     for storage_dir in storage_dirs:
-        file_handler = create_new_filehandler(master_logger.name, logfile=storage_dir / 'alfred_launch_schedule_logger.out')
+        file_handler = create_new_filehandler(master_logger.name,
+                                              logfile=storage_dir / 'alfred_launch_schedule_logger.out')
         master_logger.addHandler(file_handler)
 
     master_logger.debug("Storage Directories to be launched:")
@@ -243,11 +255,6 @@ def launch_schedule(from_file, storage_name, over_tasks, n_processes, n_experime
         master_logger.debug(storage_dir)
 
     for i, storage_dir in enumerate(storage_dirs):
-
-        if not storage_dir.exists():
-            master_logger.warning(f'DIRECTORY NOT FOUND: repository {storage_dir} cannot be found: REMOVED FROM LIST')
-            del(storage_dirs[i])
-            continue
 
         # Checks if code hash matches the folder to be run_schedule
 
