@@ -254,26 +254,6 @@ def launch_schedule(from_file, storage_name, over_tasks, n_processes, n_experime
     for storage_dir in storage_dirs:
         master_logger.debug(storage_dir)
 
-    for i, storage_dir in enumerate(storage_dirs):
-
-        # Checks if code hash matches the folder to be run_schedule
-
-        if check_hash:
-
-            current_git_hashes = {}
-            for name, repo in DirectoryTree.git_repos_to_track.items():
-                current_git_hashes[name] = get_git_hash(path=repo)
-
-            _, storage_name_git_hashes, _, _, _ = DirectoryTree.extract_info_from_storage_name(storage_dir.name)
-            storage_name_git_hash_list = storage_name_git_hashes.split("-")
-
-            for i, (name, hash) in enumerate(current_git_hashes.items()):
-                if hash not in storage_name_git_hash_list:
-                    master_logger.warning(f"WRONG HASH: repository '{name}' current hash ({hash}) does not match "
-                                          f"storage_dir hash ({storage_name_git_hash_list[i]}): REMOVED FROM LIST")
-                    del (storage_dirs[i])
-                    break
-
     # Log some info
 
     master_logger.debug(f"\n\n{'=' * 200}\n"

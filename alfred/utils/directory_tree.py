@@ -231,7 +231,7 @@ def sanity_check_hash(storage_dir, master_logger):
     for i, (name, hash) in enumerate(current_git_hashes.items()):
         if hash not in storage_name_git_hash_list:
             master_logger.warning(f"WRONG HASH: repository '{name}' current hash ({hash}) does not match "
-                                  f"storage_dir hash ({storage_name_git_hash_list[i]}): REMOVED FROM LIST")
+                                  f"storage_dir hash ({storage_name_git_hash_list[i]}): {storage_dir} REMOVED FROM LIST")
             return False
 
     return True
