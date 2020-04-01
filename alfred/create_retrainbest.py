@@ -5,7 +5,7 @@ from pathlib import Path
 from importlib import import_module
 
 from alfred.utils.misc import create_logger, select_storage_dirs
-from alfred.utils.directory_tree import DirectoryTree, get_root
+from alfred.utils.directory_tree import DirectoryTree, get_root, sanity_check_exists
 from alfred.utils.config import parse_bool, load_dict_from_json
 from alfred.prepare_schedule import create_experiment_dir
 
@@ -40,6 +40,10 @@ def create_retrain_best(from_file, storage_name, over_tasks, n_retrain_seeds, ro
     # Select storage_dirs to run over
 
     storage_dirs = select_storage_dirs(from_file, storage_name, over_tasks, root_dir)
+
+    # Sanity-check that storages exist
+
+    storage_dirs = [storage_dir for storage_dir in storage_dirs if sanity_check_exists(storage_dir, logger)]
 
     # Imports schedule file to have same settings for DirectoryTree.git_repos_to_track
 
