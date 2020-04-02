@@ -17,7 +17,7 @@ To make using alfred as seamless as possible, add the followings to your `.bachr
 alias alprep='python -m alfred.prepare_schedule'
 alias allaunch='python -m alfred.launch_schedule'
 alias alclean='python -m alfred.clean_interrupted'
-alias alplot='python -m alfred.make_comparative_plots'
+alias alplot='python -m alfred.make_plot_arrays'
 alias alretrain='python -m alfred.create_retrainbest'
 alias albench='python -m alfred.benchmark'
 alias alsync='python -m alfred.sync_wandb'
