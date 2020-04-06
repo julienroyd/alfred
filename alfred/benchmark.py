@@ -31,7 +31,8 @@ def get_benchmark_args():
 
     parser.add_argument('--x_metric', default="episode", type=str)
     parser.add_argument('--y_metric', default="eval_return", type=str)
-    parser.add_argument('--y_error_bars', default="bootstrapped_CI", choices=["bootstrapped_CI", "stderr", "10th_quantile"])
+    parser.add_argument('--y_error_bars', default="bootstrapped_CI",
+                        choices=["bootstrapped_CI", "stderr", "10th_quantile"])
 
     parser.add_argument('--re_run_if_exists', type=parse_bool, default=False,
                         help="Whether to re-compute seed_scores if 'seed_scores.pkl' already exists")
@@ -53,7 +54,6 @@ def get_benchmark_args():
 
 def _compute_seed_scores(storage_dir, performance_metric, performance_aggregation, group_key, bar_key,
                          re_run_if_exists, save_dir, logger, root_dir, n_eval_runs=None):
-
     if (storage_dir / save_dir / f"{save_dir}_seed_scores.pkl").exists() and not re_run_if_exists:
         logger.info(f" SKIPPING {storage_dir} - {save_dir}_seed_scores.pkl already exists")
         return
@@ -389,7 +389,8 @@ def _gather_experiments_training_curves(storage_dir, graph_key, curve_key, logge
     return x_data, y_data
 
 
-def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_bars, storage_dirs, save_dir, logger, n_labels=np.inf, visuals_file=None):
+def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_bars, storage_dirs, save_dir, logger,
+                                    n_labels=np.inf, visuals_file=None):
     # Initialize containers
 
     y_data_means = OrderedDict()
@@ -443,7 +444,8 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                 y_data_err_down = y_data_err_up
 
             elif y_error_bars == "bootstrapped_CI":
-                y_data_samples = np.stack(y_data[outer_key][inner_key], axis=-1)  # dim=0 is accross time (n_time_steps, n_samples)
+                y_data_samples = np.stack(y_data[outer_key][inner_key],
+                                          axis=-1)  # dim=0 is accross time (n_time_steps, n_samples)
                 mean, err_up, err_down = get_95_confidence_interval_of_sequence(list_of_samples=y_data_samples,
                                                                                 method=y_error_bars)
                 y_data_means[outer_key][inner_key] = mean
@@ -521,7 +523,7 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                     xlabel=x_metric,
                     ylabel=y_metric,
                     title=outer_key.upper(),
-                    add_legend=True if i==(len(list(y_data.keys())) - 1) else False,
+                    add_legend=True if i == (len(list(y_data.keys())) - 1) else False,
                     legend_underneath=True,
                     legend_loc="upper right",
                     legend_pos=(1., -0.2))
@@ -664,7 +666,8 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, make_box_plot, y
 
 # benchmark interface ---------------------------------------------------------------------------------------------
 
-def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric, y_error_bars, visuals_file,
+def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric, y_error_bars,
+                   visuals_file,
                    performance_metric, performance_aggregation, make_performance_chart=True, make_learning_plots=True):
     """
     compare_models compare several storage_dirs
@@ -793,7 +796,8 @@ def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_d
     return
 
 
-def compare_searches(storage_names, y_error_bars, performance_metric, performance_aggregation, visuals_file, re_run_if_exists, logger, root_dir):
+def compare_searches(storage_names, y_error_bars, performance_metric, performance_aggregation, visuals_file,
+                     re_run_if_exists, logger, root_dir):
     """
     compare_searches compare several storage_dirs
     """

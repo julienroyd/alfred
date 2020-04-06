@@ -119,7 +119,8 @@ def select_storage_dirs(from_file, storage_name, over_tasks, root_dir):
             storage_dirs = [storage_dir]
 
     else:
-        raise NotImplementedError("storage_dirs to operate over must be specified either by --from_file or --storage_name")
+        raise NotImplementedError(
+            "storage_dirs to operate over must be specified either by --from_file or --storage_name")
 
     return storage_dirs
 
