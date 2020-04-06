@@ -133,6 +133,22 @@ class DirectoryTree(object):
         return instance
 
     @classmethod
+    def init_from_branching_info(cls, root_dir, storage_name, experiment_num, seed_num):
+        id, git_hashes, alg_name, task_name, desc = \
+            DirectoryTree.extract_info_from_storage_name(storage_name)
+
+        instance = cls(id=id,
+                       git_hashes=git_hashes,
+                       alg_name=alg_name,
+                       task_name=task_name,
+                       desc=desc,
+                       experiment_num=experiment_num,
+                       seed=seed_num,
+                       root=root_dir)
+
+        return instance
+
+    @classmethod
     def extract_info_from_storage_name(cls, storage_name):
 
         id = storage_name.split("_")[0]
