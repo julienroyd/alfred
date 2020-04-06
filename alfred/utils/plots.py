@@ -46,9 +46,9 @@ def bar_chart(ax, scores, err_up=None, err_down=None, capsize=10., colors=None,
 
 
 def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, markevery=None, labels=None,
-                xlabel="", ylabel="", axis_font_size=22, tick_font_size=18, title="", title_font_size=24,
-                fill_up=None, fill_down=None, alpha_fill=0.1, smooth=False, add_legend=True, legend_underneath=False,
-                legend_font_size=20, legend_pos=(0.5, -0.2), legend_loc="upper center"):
+                xlabel="", ylabel="", xlim=(None, None), ylim=(None, None), axis_font_size=22, tick_font_size=18,
+                title="", title_font_size=24, fill_up=None, fill_down=None, alpha_fill=0.1, smooth=False,
+                add_legend=True, legend_underneath=False, legend_font_size=20, legend_pos=(0.5, -0.2), legend_loc="upper center"):
     if xs is None:
         xs = [range(len(y)) for y in ys]
 
@@ -90,6 +90,9 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
     ax.set_title(title, fontsize=title_font_size)
     ax.set_xlabel(xlabel, fontsize=axis_font_size)
     ax.set_ylabel(ylabel, fontsize=axis_font_size)
+
+    ax.set_xlim(*xlim)
+    ax.set_ylim(*ylim)
 
     ax.yaxis.set_major_locator(plt.MaxNLocator(5))
     ax.tick_params(axis='both', which='major', labelsize=tick_font_size)
