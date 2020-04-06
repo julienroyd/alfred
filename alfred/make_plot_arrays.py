@@ -1,6 +1,5 @@
 import argparse
 import logging
-from pathlib import Path
 import numpy as np
 import matplotlib
 from copy import deepcopy
@@ -14,7 +13,9 @@ from alfred.utils.recorder import Recorder
 from alfred.utils.plots import plot_curves
 from alfred.utils.directory_tree import DirectoryTree
 
-PLOTS_TO_MAKE = [('total_steps', 'eval_return')]
+PLOTS_TO_MAKE = [('episode', 'eval_return', (None, None), (None, None)),  # TODO: make that an argument
+                 ('episode', 'return', (None, None), (None, None)),
+                 ('episode', 'episode_len', (None, None), (0, 350))]
 
 
 def get_make_plots_args():
@@ -130,7 +131,7 @@ def create_plot_arrays(from_file, storage_name, over_tasks, root_dir, logger):
             else:
                 first_seed_idx = 0
 
-            for x_metric, y_metric in PLOTS_TO_MAKE:
+            for x_metric, y_metric, x_lim, y_lim in PLOTS_TO_MAKE:
                 logger.debug(f'\n{y_metric.upper()} as a function of {x_metric.upper()}:')
 
                 # Creates the subplots
@@ -205,9 +206,11 @@ def create_plot_arrays(from_file, storage_name, over_tasks, root_dir, logger):
 
                             if x_metric in loaded_recorder.tape.keys() and y_metric in loaded_recorder.tape.keys():
                                 plot_curves(current_ax,
-                                            ys=[loaded_recorder.tape['return']],
-                                            xs=[loaded_recorder.tape['total_steps']],
-                                            xlabel="Transitions", title="Return")
+                                            ys=[loaded_recorder.tape[y_metric]],
+                                            xs=[loaded_recorder.tape[x_metric]],
+                                            xlim=x_lim,
+                                            ylim=y_lim,
+                                            xlabel=x_metric, title=y_metric)
 
                             else:
                                 raise Warning(f"One of '{x_metric}' or '{y_metric}' was not recorded in train_recorder.")
