@@ -8,6 +8,8 @@ from pathlib import Path
 from alfred.utils.config import config_to_str
 from alfred.utils.directory_tree import DirectoryTree, get_root, get_storage_dirs_across_tasks
 
+COMMENTING_CHAR_LIST = ['#']
+
 
 def create_logger(name, loglevel, logfile=None, streamHandle=True):
     logger = logging.getLogger(name)
@@ -91,6 +93,10 @@ def check_params_defined_twice(keys):
             raise ValueError(f'Parameter "{key}" appears {counted_keys[key]} times in the schedule.')
 
 
+def is_commented(str_line, commenting_char_list):
+    return str_line[0] in commenting_char_list
+
+
 def select_storage_dirs(from_file, storage_name, over_tasks, root_dir):
     if from_file is not None:
         assert storage_name is None, "If launching --from_file, no storage_name should be provided"
@@ -106,6 +112,9 @@ def select_storage_dirs(from_file, storage_name, over_tasks, root_dir):
         with open(from_file, "r") as f:
             storage_names = f.readlines()
         storage_names = [sto_name.strip('\n') for sto_name in storage_names]
+
+        # drop the commented lignes in the .txt
+        storage_names = [sto_name for sto_name in storage_names if not is_commented(sto_name, COMMENTING_CHAR_LIST)]
 
         storage_dirs = [get_root(root_dir) / sto_name for sto_name in storage_names]
 

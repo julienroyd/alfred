@@ -1,5 +1,5 @@
 from alfred.utils.config import parse_bool, load_dict_from_json, save_dict_to_json
-from alfred.utils.misc import create_logger
+from alfred.utils.misc import create_logger, select_storage_dirs
 from alfred.utils.directory_tree import DirectoryTree, get_root
 from alfred.utils.recorder import Recorder
 from alfred.utils.plots import create_fig, bar_chart, plot_curves, plot_vertical_densities
@@ -840,24 +840,20 @@ if __name__ == '__main__':
     benchmark_args = get_benchmark_args()
     logger = create_logger(name="BENCHMARK - MAIN", loglevel=logging.DEBUG)
 
-    # Checks how the list of storage_names to act on is provided
+    # Gets storage_dirs list
 
-    visuals_file = None
+    storage_dirs = select_storage_dirs(from_file=benchmark_args.from_file,
+                                       storage_name=benchmark_args.storage_names,
+                                       over_tasks=False,
+                                       root_dir=benchmark_args.root_dir)
 
-    if benchmark_args.storage_names is None and benchmark_args.from_file is None:
-        raise ValueError("One of --storage_names or --from_file must be defined for benchmark.py to know what to work on")
+    # convert them to storage_name to be compatible with the function called down the line
 
-    if benchmark_args.storage_names is not None:
-        assert benchmark_args.from_file is None, "If --storage_names is defined, from_file must be None."
+    benchmark_args.storage_names = [storage_dir_path.name for storage_dir_path in storage_dirs]
+
+    # Gets visuals_file for plotting
 
     if benchmark_args.from_file is not None:
-        assert benchmark_args.storage_names is None, "If --from_file is defined, storage_names must be None."
-
-        # Get storage_names to benchmark
-
-        with open(benchmark_args.from_file, "r") as f:
-            storage_names = f.readlines()
-        benchmark_args.storage_names = [sto_name.strip('\n') for sto_name in storage_names]
 
         # Gets path of visuals_file
 
@@ -865,6 +861,9 @@ if __name__ == '__main__':
         visuals_file = Path(benchmark_args.from_file).parent / f"visuals_{schedule_name}.json"
         if not visuals_file.exists():
             visuals_file = None
+
+    else:
+        visuals_file = None
 
     # Launches the requested benchmark type (comparing searches [vertical densities] or comparing final models [learning curves])
 
