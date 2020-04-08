@@ -13,8 +13,7 @@ from alfred.utils.recorder import Recorder
 from alfred.utils.plots import plot_curves
 from alfred.utils.directory_tree import DirectoryTree
 
-PLOTS_TO_MAKE = [('episode', 'eval_return', (None, None), (None, None)),  # TODO: make that an argument
-                 ('episode', 'return', (None, None), (None, None)),
+PLOTS_TO_MAKE = [('episode', 'eval_return', (None, None), (None, None)),
                  ('episode', 'episode_len', (None, None), (0, 350))]
 
 
@@ -213,7 +212,9 @@ def create_plot_arrays(from_file, storage_name, over_tasks, root_dir, logger):
                                             xlabel=x_metric, title=y_metric)
 
                             else:
-                                raise Warning(f"One of '{x_metric}' or '{y_metric}' was not recorded in train_recorder.")
+                                logger.debug(f"One of '{x_metric}' or '{y_metric}' was not recorded in train_recorder.")
+                                current_ax.text(0.2, 0.2, "ABSENT METRIC",
+                                                transform=current_ax.transAxes, fontsize=24, fontweight='bold', color='red')
 
                         except FileNotFoundError:
                             logger.debug('Training recorder not found')
