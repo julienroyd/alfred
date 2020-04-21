@@ -361,8 +361,9 @@ def prepare_schedule(desc, schedule_file, root_dir, add_to_folder, resample, log
             open(str(dir_tree.storage_dir / 'GRID_SEARCH'), 'w+').close()
 
         elif search_type == 'random':
-
-            fig, ax = plt.subplots(len(param_samples[alg_task_i]), 1, figsize=(6, 2 * len(param_samples[alg_task_i])))
+            len_samples = len(param_samples[alg_task_i])
+            fig_width = 2 * len_samples if len_samples > 0 else 2
+            fig, ax = plt.subplots(len(param_samples[alg_task_i]), 1, figsize=(6, fig_width))
             if not hasattr(ax, '__iter__'):
                 ax = [ax]
 
