@@ -535,7 +535,8 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
     plt.close(fig)
 
 
-def _make_vertical_densities_figure(storage_dirs, visuals_file, make_box_plot, y_metric, save_dir, load_dir, logger):
+def _make_vertical_densities_figure(storage_dirs, visuals_file, make_box_plot, queried_performance_metric,
+                                    queried_performance_aggregation, save_dir, load_dir, logger):
     # Initialize container
 
     all_means = OrderedDict()
@@ -543,6 +544,8 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, make_box_plot, y
     labels = OrderedDict()
     colors = OrderedDict()
     markers = OrderedDict()
+    all_performance_metrics = []
+    all_performance_aggregation = []
 
     # Loads visuals dictionaries
 
@@ -556,10 +559,14 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, make_box_plot, y
     for storage_dir in storage_dirs:
         logger.debug(storage_dir)
 
-        # Loads the scores saved by summarize_search
+        # Loads the scores and scores_info saved by summarize_search
 
         with open(str(storage_dir / load_dir / f"{load_dir}_seed_scores.pkl"), "rb") as f:
             scores = pickle.load(f)
+
+        scores_info = load_dict_from_json(str(storage_dir / "summary" / f"summary_seed_scores_info.json"))
+        all_performance_metrics.append(scores_info['performance_metric'])
+        all_performance_aggregation.append(scores_info['performance_aggregation'])
 
         # Taking the mean across seeds and evaluation-runs for each experiment
 
@@ -581,6 +588,22 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, make_box_plot, y
             long_labels[task_name] = [storage_dir]
         else:
             long_labels[task_name].append(storage_dir)
+
+    # Security checks
+
+    assert len(set(all_performance_metrics)) == 1 and len(set(all_performance_aggregation)) == 1, \
+        "Error: all seeds do not have scores computed using the same performance metric or performance aggregation. " \
+        "You should benchmark with --re_run_if_exists=True using the desired --performance_aggregation and " \
+        "--performance_metric so that all seeds that you want to compare have the same metrics."
+    actual_performance_metric = all_performance_metrics.pop()
+    actual_performance_aggregation = all_performance_aggregation.pop()
+
+    assert queried_performance_metric == actual_performance_metric and \
+           queried_performance_aggregation == actual_performance_aggregation, \
+        "Error: The performance_metric or performance_aggregation that was queried for the vertical_densities " \
+        "is not the same as what was saved by summarize_search. You should benchmark with --re_run_if_exists=True " \
+        "using the desired --performance_aggregation and  --performance_metric so that all seeds that you want " \
+        "to compare have the same metrics."
 
     # Initialize figure
 
@@ -646,7 +669,7 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, make_box_plot, y
                                 colors=colors[task_name],
                                 make_boxplot=make_box_plot,
                                 title=task_name.upper(),
-                                ylabel=y_metric)
+                                ylabel=f"{actual_performance_aggregation}-{actual_performance_metric}")
 
     # Saves the figure
 
@@ -667,8 +690,8 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, make_box_plot, y
 # benchmark interface ---------------------------------------------------------------------------------------------
 
 def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric, y_error_bars,
-                   visuals_file,
-                   performance_metric, performance_aggregation, make_performance_chart=True, make_learning_plots=True):
+                   visuals_file, performance_metric, performance_aggregation,
+                   make_performance_chart=True, make_learning_plots=True):
     """
     compare_models compare several storage_dirs
     """
@@ -828,7 +851,8 @@ def compare_searches(storage_names, y_error_bars, performance_metric, performanc
     _make_vertical_densities_figure(storage_dirs=storage_dirs,
                                     visuals_file=visuals_file,
                                     make_box_plot=True,
-                                    y_metric="eval_return",
+                                    queried_performance_metric=performance_metric,
+                                    queried_performance_aggregation=performance_aggregation,
                                     load_dir="summary",
                                     save_dir="benchmark",
                                     logger=logger)
