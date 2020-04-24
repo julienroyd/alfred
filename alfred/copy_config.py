@@ -10,6 +10,8 @@ def my_type_func(add_arg):
         val = float(val)
     elif val == "None":
         val = None
+    elif typ == 'str':
+        val = str(val)
     else:
         raise NotImplementedError
     return name, val
@@ -31,15 +33,15 @@ def get_args():
 def copy_configs(storage_name, new_task, new_desc, additional_params, root_dir):
     storage_to_copy = get_root(root_dir) / storage_name
     seeds_to_copy = get_all_seeds(storage_to_copy)
-    config_list = []
-    config_unique_list = []
+    config_path_list = []
+    config_unique_path_list = []
 
     test = Path('.')
     # find the path to all the configs files
 
     for dir in seeds_to_copy:
-        config_list.append(dir / 'config.json')
-        config_unique_list.append(dir / 'config_unique.json')
+        config_path_list.append(dir / 'config.json')
+        config_unique_path_list.append(dir / 'config_unique.json')
 
     # extract storage name info
 
@@ -57,15 +59,15 @@ def copy_configs(storage_name, new_task, new_desc, additional_params, root_dir):
     # creates the new folders with loaded config from which we overwrite the task_name
 
     dir = None
-    for config, config_unique in zip(config_list, config_unique_list):
+    for config_path, config_unique_path in zip(config_path_list, config_unique_path_list):
 
-        config = load_config_from_json(str(config))
+        config = load_config_from_json(str(config_path))
         config.task_name = new_task
         config.desc = desc
-        expe_name = config.parents[1].name
+        expe_name = config_path.parents[1].name
         experiment_num = int(''.join([s for s in expe_name if s.isdigit()]))
 
-        config_unique = load_config_from_json(str(config_unique))
+        config_unique = load_config_from_json(str(config_unique_path))
         config_unique.task_name = new_task
 
         if additional_params is not None:
@@ -73,14 +75,15 @@ def copy_configs(storage_name, new_task, new_desc, additional_params, root_dir):
             for (key, value) in additional_params:
                 config.__dict__[key] = value
 
-        dir = DirectoryTree.init_from_training_param(id=storage_name_id,
-                                                     alg_name=config.alg_name,
-                                                     task_name=config.task_name,
-                                                     desc=config.desc,
-                                                     seed=config.seed,
-                                                     experiment_num=experiment_num,
-                                                     git_hashes=git_hashes,
-                                                     root=root_dir)
+        dir = DirectoryTree(id=storage_name_id,
+                            alg_name=config.alg_name,
+                            task_name=config.task_name,
+                            desc=config.desc,
+                            seed=config.seed,
+                            experiment_num=experiment_num,
+                            git_hashes=git_hashes,
+                            root=root_dir)
+
         dir.create_directories()
         print(f"Creating {str(dir.seed_dir)}\n")
         save_config_to_json(config, filename=str(dir.seed_dir / "config.json"))
