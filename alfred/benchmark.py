@@ -53,7 +53,7 @@ def get_benchmark_args():
 # utility functions for curves (should not be called alone) -------------------------------------------------------
 
 def _compute_seed_scores(storage_dir, performance_metric, performance_aggregation, group_key, bar_key,
-                         re_run_if_exists, save_dir, logger, root_dir, n_eval_runs=None):
+                         re_run_if_exists, save_dir, logger, root_dir, n_eval_runs):
     if (storage_dir / save_dir / f"{save_dir}_seed_scores.pkl").exists() and not re_run_if_exists:
         logger.info(f" SKIPPING {storage_dir} - {save_dir}_seed_scores.pkl already exists")
         return
@@ -128,6 +128,7 @@ def _compute_seed_scores(storage_dir, performance_metric, performance_aggregatio
                 eval_config.seed_num = int(seed_dir.name.strip("seed"))
                 eval_config.render = False
                 eval_config.n_episodes = n_eval_runs
+                eval_config.root_dir = root_dir
 
                 # Evaluates agent and stores the return
 
@@ -820,7 +821,7 @@ def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_d
 
 
 def compare_searches(storage_names, y_error_bars, performance_metric, performance_aggregation, visuals_file,
-                     re_run_if_exists, logger, root_dir):
+                     additional_curves_files, re_run_if_exists, logger, root_dir, n_eval_runs):
     """
     compare_searches compare several storage_dirs
     """
@@ -836,7 +837,7 @@ def compare_searches(storage_names, y_error_bars, performance_metric, performanc
     for storage_dir in storage_dirs:
         if not (storage_dir / "summary" / f"summary_seed_scores.pkl").exists() or re_run_if_exists:
             summarize_search(storage_name=storage_dir.name,
-                             n_eval_runs=None,
+                             n_eval_runs=n_eval_runs,
                              x_metric="episode",
                              y_metric="eval_return",
                              y_error_bars=y_error_bars,
