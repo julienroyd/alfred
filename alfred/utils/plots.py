@@ -48,7 +48,9 @@ def bar_chart(ax, scores, err_up=None, err_down=None, capsize=10., colors=None,
 def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, markevery=None, labels=None,
                 xlabel="", ylabel="", xlim=(None, None), ylim=(None, None), axis_font_size=22, tick_font_size=18,
                 title="", title_font_size=24, fill_up=None, fill_down=None, alpha_fill=0.1, smooth=False,
-                add_legend=True, legend_underneath=False, legend_font_size=20, legend_pos=(0.5, -0.2), legend_loc="upper center"):
+                add_legend=True, legend_underneath=False, legend_font_size=20, legend_pos=(0.5, -0.2),
+                legend_loc="upper center",
+                hlines=None):
     if xs is None:
         xs = [range(len(y)) for y in ys]
 
@@ -61,6 +63,8 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
     if labels is None:
         labels = [None] * len(ys)
 
+    n_col_leg = len(ys)
+
     # Plots losses and smoothed losses for every agent
 
     for i, (x, y) in enumerate(zip(xs, ys)):
@@ -71,19 +75,22 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
         # Adds filling around curve (central tendency)
 
         if fill_up is not None and fill_down is not None:
-            ax.plot(x, y, color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize,  label=labels[i])
+            ax.plot(x, y, color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize,
+                    label=labels[i])
             ax.fill_between(x, y - fill_down[i], y + fill_up[i], color=colors[i], alpha=alpha_fill)
 
         # Smooth curve using running average
 
         elif smooth:
-            ax.plot(x, y, color=colors[i], alpha=3*alpha_fill)
-            ax.plot(x, smooth_out(y), color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize, label=labels[i])
+            ax.plot(x, y, color=colors[i], alpha=3 * alpha_fill)
+            ax.plot(x, smooth_out(y), color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize,
+                    label=labels[i])
 
         # Just regular curve
 
         else:
-            ax.plot(x, y, color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize, label=labels[i])
+            ax.plot(x, y, color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize,
+                    label=labels[i])
 
     # Axis settings
 
@@ -92,6 +99,17 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
     ax.set_ylabel(ylabel, fontsize=axis_font_size)
 
     ax.set_xlim(*xlim)
+
+    # Plots horizontal lines
+
+    if hlines is not None:
+        xmin, xmax = ax.get_xlim()
+
+        for hline in hlines:
+            hline.update({'xmin': xmin, 'xmax': xmax})
+            ax.hlines(**hline)
+            n_col_leg += 1
+
     ax.set_ylim(*ylim)
 
     ax.yaxis.set_major_locator(plt.MaxNLocator(5))
@@ -104,7 +122,7 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
         if legend_underneath:
             if add_legend:
                 legend = ax.legend(loc=legend_loc, framealpha=0.25, bbox_to_anchor=legend_pos,
-                                   fancybox=True, shadow=False, ncol=len(ys), fontsize=legend_font_size)
+                                   fancybox=True, shadow=False, ncol=n_col_leg, fontsize=legend_font_size)
                 for legobj in legend.legendHandles:
                     legobj.set_linewidth(2.0)
                 for text in legend.get_texts():
@@ -134,7 +152,7 @@ def plot_sampled_hyperparams(ax, param_samples, log_params):
 
 def plot_vertical_densities(ax, ys, colors=None, labels=None,
                             xlabel="", ylabel="", axis_font_size=22, tick_font_size=18, title="", title_font_size=24,
-                            make_boxplot=False, whis=(0, 99)):
+                            make_boxplot=False, whis=(0, 99), hlines=None):
     if colors is None:
         colors = [None] * len(ys)
 
@@ -159,9 +177,16 @@ def plot_vertical_densities(ax, ys, colors=None, labels=None,
 
     else:
         for i, y in enumerate(ys):
-
             pos = [i] * len(ys)
             ax.plot(np.array(pos) + 1, ys, linestyle='', marker='o', label=labels[i], alpha=0.5, color=colors[i])
+
+    # Adds horizontal lines
+
+    if hlines is not None:
+        xmin, xmax = 0.5, len(ys) + 0.5
+        for hline in hlines:
+            hline.update({'xmin': xmin - 1, 'xmax': xmax + 1})
+            ax.hlines(**hline)
 
     # Axis settings
 
@@ -172,6 +197,14 @@ def plot_vertical_densities(ax, ys, colors=None, labels=None,
     ax.set_title(title, fontsize=title_font_size)
     ax.set_xlabel(xlabel, fontsize=axis_font_size)
     ax.set_ylabel(ylabel, fontsize=axis_font_size)
+
+    ## Commented below because looks hugly
+
+    # if hlines is not None:
+    #     legend = ax.legend(framealpha=0.25, fancybox=True, shadow=False, fontsize=20, bbox_to_anchor=(0.5, -0.2),
+    #                        loc="upper center")
+    #     for legobj in legend.legendHandles:
+    #         legobj.set_linewidth(2.0)
 
     ax.yaxis.set_major_locator(plt.MaxNLocator(5))
     ax.tick_params(axis='both', which='major', labelsize=tick_font_size)

@@ -391,7 +391,7 @@ def _gather_experiments_training_curves(storage_dir, graph_key, curve_key, logge
 
 
 def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_bars, storage_dirs, save_dir, logger,
-                                    n_labels=np.inf, visuals_file=None):
+                                    n_labels=np.inf, visuals_file=None, additional_curves_file=None):
     # Initialize containers
 
     y_data_means = OrderedDict()
@@ -431,6 +431,14 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
         visuals = load_dict_from_json(visuals_file)
     else:
         visuals = None
+
+    # Loads additional curves file
+
+    if additional_curves_file is not None:
+        additional_curves = load_dict_from_json(additional_curves_file)
+
+    else:
+        additional_curves = None
 
     # Compute means and stds for all inner_key curve from raw data
 
@@ -511,6 +519,11 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
 
         logger.info(f"Graph for {outer_key}:\n\tlabels={labels}\n\tcolors={colors}\n\tmarkers={markers}")
 
+        if additional_curves_file is not None:
+            hlines = additional_curves['hlines'][outer_key]
+        else:
+            hlines = None
+
         # Plots the curves
 
         plot_curves(current_ax,
@@ -527,7 +540,8 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                     add_legend=True if i == (len(list(y_data.keys())) - 1) else False,
                     legend_underneath=True,
                     legend_loc="upper right",
-                    legend_pos=(1., -0.2))
+                    legend_pos=(1., -0.2),
+                    hlines=hlines)
 
     for storage_dir in storage_dirs:
         os.makedirs(storage_dir / save_dir, exist_ok=True)
@@ -536,7 +550,7 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
     plt.close(fig)
 
 
-def _make_vertical_densities_figure(storage_dirs, visuals_file, make_box_plot, queried_performance_metric,
+def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curves_file, make_box_plot, queried_performance_metric,
                                     queried_performance_aggregation, save_dir, load_dir, logger):
     # Initialize container
 
@@ -554,6 +568,14 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, make_box_plot, q
         visuals = load_dict_from_json(visuals_file)
     else:
         visuals = None
+
+    # Loads additional curves file
+
+    if additional_curves_file is not None:
+        additional_curves = load_dict_from_json(additional_curves_file)
+
+    else:
+        additional_curves = None
 
     # Gathers data
 
@@ -664,13 +686,19 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, make_box_plot, q
 
         # Makes the plots
 
+        if additional_curves_file is not None:
+            hlines = additional_curves['hlines'][task_name]
+        else:
+            hlines = None
+
         plot_vertical_densities(ax=current_ax,
                                 ys=list(all_means[task_name].values()),
                                 labels=labels[task_name],
                                 colors=colors[task_name],
                                 make_boxplot=make_box_plot,
                                 title=task_name.upper(),
-                                ylabel=f"{actual_performance_aggregation}-{actual_performance_metric}")
+                                ylabel=f"{actual_performance_aggregation}-{actual_performance_metric}",
+                                hlines=hlines)
 
     # Saves the figure
 
@@ -691,7 +719,7 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, make_box_plot, q
 # benchmark interface ---------------------------------------------------------------------------------------------
 
 def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric, y_error_bars,
-                   visuals_file, performance_metric, performance_aggregation,
+                   visuals_file, additional_curves_file, performance_metric, performance_aggregation,
                    make_performance_chart=True, make_learning_plots=True):
     """
     compare_models compare several storage_dirs
@@ -728,7 +756,8 @@ def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_di
                                         n_labels=np.inf,
                                         save_dir="benchmark",
                                         logger=logger,
-                                        visuals_file=visuals_file)
+                                        visuals_file=visuals_file,
+                                        additional_curves_file=additional_curves_file)
 
     if make_performance_chart:
         logger.debug(f'\n{"benchmark_performance".upper()}:')
@@ -851,6 +880,7 @@ def compare_searches(storage_names, y_error_bars, performance_metric, performanc
 
     _make_vertical_densities_figure(storage_dirs=storage_dirs,
                                     visuals_file=visuals_file,
+                                    additional_curves_file=additional_curves_file,
                                     make_box_plot=True,
                                     queried_performance_metric=performance_metric,
                                     queried_performance_aggregation=performance_aggregation,
@@ -884,11 +914,15 @@ if __name__ == '__main__':
 
         schedule_name = Path(benchmark_args.from_file).parent.stem
         visuals_file = Path(benchmark_args.from_file).parent / f"visuals_{schedule_name}.json"
+        additional_curves_file = Path(benchmark_args.from_file).parent / f"additional_curves_{schedule_name}.json"
         if not visuals_file.exists():
             visuals_file = None
+        if not additional_curves_file.exists():
+            additional_curves_file = None
 
     else:
         visuals_file = None
+        additional_curves_file = None
 
     # Launches the requested benchmark type (comparing searches [vertical densities] or comparing final models [learning curves])
 
@@ -898,6 +932,7 @@ if __name__ == '__main__':
                        y_metric="eval_return",
                        y_error_bars=benchmark_args.y_error_bars,
                        visuals_file=visuals_file,
+                       additional_curves_file=additional_curves_file,
                        n_eval_runs=benchmark_args.n_eval_runs,
                        performance_metric=benchmark_args.performance_metric,
                        performance_aggregation=benchmark_args.performance_aggregation,
@@ -912,7 +947,9 @@ if __name__ == '__main__':
                          y_error_bars=benchmark_args.y_error_bars,
                          performance_metric=benchmark_args.performance_metric,
                          performance_aggregation=benchmark_args.performance_aggregation,
+                         n_eval_runs=benchmark_args.n_eval_runs,
                          visuals_file=visuals_file,
+                         additional_curves_files=additional_curves_file,
                          re_run_if_exists=benchmark_args.re_run_if_exists,
                          logger=logger,
                          root_dir=get_root(benchmark_args.root_dir))
