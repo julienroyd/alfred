@@ -40,12 +40,11 @@ def create_new_filehandler(logger_name, logfile):
     return file_handler
 
 
-def round_to_two(x):
-    return round(x, -int(floor(log10(abs(x))) - 1))
-
-
 def keep_two_signif_digits(x):
-    return round(x, -int(floor(log10(abs(x))) - 1))
+    if x == 0.:
+        return x
+    else:
+        return round(x, -int(floor(log10(abs(x))) - 1))
 
 
 def sorted_nicely(l):
