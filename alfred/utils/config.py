@@ -17,6 +17,30 @@ def parse_bool(bool_arg):
         raise ValueError(f'Boolean argument expected. Got {bool_arg} instead.')
 
 
+def convert_to_type_from_str(string):
+    if any(char.isdigit() for char in string):
+        # we are dealing with numbers
+        if '.' in string:
+            val = float(string)
+        else:
+            val = int(string)
+
+    else:
+        # we are not dealing special types
+
+        string = string.strip()
+
+        if string.lower() == "none":
+            val = None
+        else:
+            try:
+                val = parse_bool(string)
+            except ValueError:
+                # if we cannot identify the type it must be a str and we pass it as is
+                val = string
+    return val
+
+
 def parse_log_level(level_arg):
     """
     Parse a string representing a log level.

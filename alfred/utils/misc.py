@@ -138,3 +138,4 @@ def formatted_time_diff(total_time_seconds):
     n_minutes = int((total_time_seconds - n_hours * 3600) // 60)
     n_seconds = int(total_time_seconds - n_hours * 3600 - n_minutes * 60)
     return f"{n_hours}h{str(n_minutes).zfill(2)}m{str(n_seconds).zfill(2)}s"
+
