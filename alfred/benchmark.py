@@ -484,13 +484,8 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
             current_ax = fig.add_subplot(gs[0, 0])
         elif any(np.array(axes_shape) == 1):
             current_ax = fig.add_subplot(gs[0, i])
-        elif axes_shape == (2, 2):
-            current_ax = fig.add_subplot(gs[i // 2, i % 2])
         else:
-            if i == 0:
-                current_ax = fig.add_subplot(gs[0, :])
-            else:
-                current_ax = fig.add_subplot(gs[1, i - 1])
+            current_ax = fig.add_subplot(gs[i // axes_shape[1], i % axes_shape[1]])
 
         # Collect algorithm names
 
