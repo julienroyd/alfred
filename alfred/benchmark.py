@@ -533,9 +533,10 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                     ylabel=y_metric,
                     title=outer_key.upper(),
                     add_legend=True if i == (len(list(y_data.keys())) - 1) else False,
-                    legend_underneath=True,
-                    legend_loc="upper right",
-                    legend_pos=(1., -0.2),
+                    legend_outside=True,
+                    legend_loc="lower left",
+                    legend_pos=(1.05, 0.),
+                    legend_n_columns=1,  # len(list(y_data_means[outer_key].values())) + len(hlines)
                     hlines=hlines)
 
     for storage_dir in storage_dirs:
