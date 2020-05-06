@@ -13,20 +13,19 @@ from alfred.utils.recorder import Recorder
 from alfred.utils.plots import plot_curves
 from alfred.utils.directory_tree import DirectoryTree
 
+DEFAULT_PLOTS_TO_MAKE = [('episode', 'eval_return', (None, None), (None, None)),
+                         ('episode', 'return', (None, None), (None, None))]
 
 def get_make_plots_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--from_file', type=str, default=None,
                         help="Path containing all the storage_names for which to make plots")
     parser.add_argument('--storage_name', type=str, default=None)
-    parser.add_argument('--plots_to_make', type=plot_definition_parser, nargs='+',
-                        default=[('episode', 'eval_return', (None, None), (None, None)),
-                                 ('episode', 'episode_len', (None, None), (0, 350))],
-                        help="To specify the plots that have to be done: 'x_metric, y_metric, x_min, x_max, "
-                             "y_min, y_max'.\n"
-                             "Ex: --plots_to_make \"episode, eval_return, (None, None), (None, None))\" "
+    parser.add_argument('--plots_to_make', type=plot_definition_parser, nargs='+', default=DEFAULT_PLOTS_TO_MAKE,
+                        help="To specify the plots: 'x_metric, y_metric, x_min, x_max, y_min, y_max'.\n"
+                             "E.g: --plots_to_make \"episode, eval_return, (None, None), (None, None))\" "
                              "\"episode, episode_len, (None, None), (0, 350))\""
-                             "Be mindful and put the whole plot definition inside quotes")
+                             "(note: be mindful to put the whole plot definition inside quotes)")
 
     parser.add_argument('--over_tasks', type=parse_bool, default=False,
                         help="If true, make_plot_arrays will look for all storage_dir "
@@ -42,7 +41,7 @@ def plot_definition_parser(to_parse):
     return (x_metric, y_metric, (x_min, x_max), (y_min, y_max))
 
 
-def create_plot_arrays(from_file, storage_name, over_tasks, root_dir, plots_to_make, logger):
+def create_plot_arrays(from_file, storage_name, over_tasks, root_dir, logger, plots_to_make=DEFAULT_PLOTS_TO_MAKE):
     """
     Creates and and saves comparative figure containing a plot of total reward for each different experiment
     :param storage_dir: pathlib.Path object of the model directory containing the experiments to compare
