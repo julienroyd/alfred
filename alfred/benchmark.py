@@ -539,6 +539,8 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                     legend_n_columns=1,  # len(list(y_data_means[outer_key].values())) + len(hlines)
                     hlines=hlines)
 
+    plt.tight_layout()
+
     for storage_dir in storage_dirs:
         os.makedirs(storage_dir / save_dir, exist_ok=True)
         fig.savefig(storage_dir / save_dir / f'{save_dir}_learning.pdf', bbox_inches='tight')
@@ -697,6 +699,8 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curve
                                 hlines=hlines)
 
     # Saves the figure
+
+    plt.tight_layout()
 
     filename_addon = "boxplot" if make_box_plot else ""
 

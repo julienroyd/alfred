@@ -128,10 +128,6 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
         else:
             ax.legend(loc=legend_loc, framealpha=0.25, fancybox=True, shadow=False)
 
-    plt.tight_layout()
-
-    return
-
 
 def plot_sampled_hyperparams(ax, param_samples, log_params):
     cm = plt.cm.get_cmap('viridis')
@@ -207,8 +203,6 @@ def plot_vertical_densities(ax, ys, colors=None, labels=None,
 
     ax.yaxis.set_major_locator(plt.MaxNLocator(5))
     ax.tick_params(axis='both', which='major', labelsize=tick_font_size)
-
-    plt.tight_layout()
 
 
 def smooth_out(data_serie, smooth_factor=0.2):

@@ -246,6 +246,7 @@ def create_plot_arrays(from_file, storage_name, over_tasks, root_dir, logger, pl
                                             transform=current_ax.transAxes, fontsize=24, fontweight='bold', color='red')
                             continue
 
+                plt.tight_layout()
                 fig.savefig(str(storage_dir / f'{group_key}_comparative_{y_metric}_over_{x_metric}.png'))
                 plt.close(fig)
 
