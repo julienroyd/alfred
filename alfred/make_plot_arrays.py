@@ -23,8 +23,8 @@ def get_make_plots_args():
     parser.add_argument('--storage_name', type=str, default=None)
     parser.add_argument('--plots_to_make', type=plot_definition_parser, nargs='+', default=DEFAULT_PLOTS_TO_MAKE,
                         help="To specify the plots: 'x_metric, y_metric, x_min, x_max, y_min, y_max'.\n"
-                             "E.g: --plots_to_make \"episode, eval_return, (None, None), (None, None))\" "
-                             "\"episode, episode_len, (None, None), (0, 350))\""
+                             "E.g: --plots_to_make \"episode, eval_return, None, None, None, None\" "
+                             "\"episode, episode_len, None, None, 0, 350\""
                              "(note: be mindful to put the whole plot definition inside quotes)")
 
     parser.add_argument('--over_tasks', type=parse_bool, default=False,
