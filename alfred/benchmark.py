@@ -38,11 +38,13 @@ def get_benchmark_args():
                         help="Whether to re-compute seed_scores if 'seed_scores.pkl' already exists")
     parser.add_argument('--n_eval_runs', type=int, default=100,
                         help="Only used if performance_metric=='evaluation_runs'")
-    parser.add_argument('--performance_metric', type=str, default='avg_eval_return',
+    parser.add_argument('--performance_metric', type=str, default='eval_return',
                         help="Can fall into either of two categories: "
                              "(1) 'evaluation_runs': evaluate() will be called on model in seed_dir for 'n_eval_runs'"
                              "(2) OTHER METRIC: this metric must have been recorded in training and be a key of train_recorder")
-    parser.add_argument('--performance_aggregation', type=str, choices=['min', 'max', 'avg', 'last'], default='last',
+    parser.add_argument('--performance_aggregation', type=str, choices=['min', 'max', 'avg', 'last',
+                                                                        'mean_on_last_20_percents'],
+                        default='mean_on_last_20_percents',
                         help="How gathered 'performance_metric' should be aggregated to quantify performance of seed_dir")
 
     parser.add_argument('--root_dir', default="./storage", type=str)
@@ -157,6 +159,9 @@ def _compute_seed_scores(storage_dir, performance_metric, performance_aggregatio
             elif performance_aggregation == 'last':
                 score = performance_data[-1]
 
+            elif performance_aggregation == 'mean_on_last_20_percents':
+                eighty_percent_index = int(0.8*len(performance_data))
+                score = np.mean(performance_data[eighty_percent_index:-1])
             else:
                 raise NotImplementedError
 
