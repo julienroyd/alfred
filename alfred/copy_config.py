@@ -1,4 +1,3 @@
-import argparse
 from alfred.utils.config import *
 from alfred.utils.directory_tree import *
 
@@ -36,7 +35,6 @@ def copy_configs(storage_name, new_task, new_desc, additional_params, root_dir):
     config_path_list = []
     config_unique_path_list = []
 
-    test = Path('.')
     # find the path to all the configs files
 
     for dir in seeds_to_copy:
@@ -67,8 +65,8 @@ def copy_configs(storage_name, new_task, new_desc, additional_params, root_dir):
         expe_name = config_path.parents[1].name
         experiment_num = int(''.join([s for s in expe_name if s.isdigit()]))
 
-        config_unique = load_config_from_json(str(config_unique_path))
-        config_unique.task_name = new_task
+        config_unique_dict = load_dict_from_json(str(config_unique_path))
+        config_unique_dict['task_name'] = new_task
 
         if additional_params is not None:
 
@@ -87,7 +85,8 @@ def copy_configs(storage_name, new_task, new_desc, additional_params, root_dir):
         dir.create_directories()
         print(f"Creating {str(dir.seed_dir)}\n")
         save_config_to_json(config, filename=str(dir.seed_dir / "config.json"))
-        save_config_to_json(config_unique, filename=str(dir.seed_dir / "config_unique.json"))
+        validate_config_unique(config, config_unique_dict)
+        save_dict_to_json(config_unique_dict, filename=str(dir.seed_dir / "config_unique.json"))
         open(str(dir.seed_dir / 'UNHATCHED'), 'w+').close()
 
     open(str(dir.seed_dir.parents[1] / f'config_copied_from_{str(storage_to_copy.name)}'), 'w+').close()

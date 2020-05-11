@@ -11,15 +11,14 @@ import sys
 import itertools
 import argparse
 import matplotlib
-from pathlib import Path, PosixPath
+from pathlib import Path
 from importlib import import_module
-import os
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from alfred.utils.directory_tree import DirectoryTree, get_root
-from alfred.utils.config import save_dict_to_json, load_dict_from_json, save_config_to_json, config_to_str, parse_bool
+from alfred.utils.config import save_dict_to_json, load_dict_from_json, save_config_to_json, config_to_str, parse_bool, validate_config_unique
 from alfred.utils.plots import plot_sampled_hyperparams
 from alfred.utils.misc import create_logger
 
@@ -152,6 +151,7 @@ def create_experiment_dir(storage_name_id, config, config_unique_dict, SEEDS, ro
 
         # Saves a dictionary of what makes each seed_dir unique (just for display on graphs)
 
+        validate_config_unique(config, config_unique_dict)
         save_dict_to_json(config_unique_dict, filename=str(dir_tree.seed_dir / 'config_unique.json'))
 
         # Creates empty file UNHATCHED meaning that the experiment is ready to be run

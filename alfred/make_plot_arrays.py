@@ -8,7 +8,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from alfred.utils.misc import create_logger, select_storage_dirs
-from alfred.utils.config import load_dict_from_json, parse_bool, convert_to_type_from_str
+from alfred.utils.config import load_dict_from_json, parse_bool, convert_to_type_from_str, load_config_from_json, validate_config_unique
 from alfred.utils.recorder import Recorder
 from alfred.utils.plots import plot_curves
 from alfred.utils.directory_tree import DirectoryTree
@@ -178,18 +178,20 @@ def create_plot_arrays(from_file, storage_name, over_tasks, root_dir, logger, pl
 
                         # Writes unique hyperparameters on plot
 
-                        config_unique = load_dict_from_json(filename=str(seed_dir / 'config_unique.json'))
+                        config = load_config_from_json(filename=str(seed_dir / 'config.json'))
+                        config_unique_dict = load_dict_from_json(filename=str(seed_dir / 'config_unique.json'))
+                        validate_config_unique(config, config_unique_dict)
 
                         if search_type == 'grid':
-                            sorted_keys = sorted(config_unique.keys(),
+                            sorted_keys = sorted(config_unique_dict.keys(),
                                                  key=lambda item: (properties['variations_lengths'][item], item),
                                                  reverse=True)
 
                         else:
-                            sorted_keys = config_unique
+                            sorted_keys = config_unique_dict
 
                         info_str = f'{seed_dir.parent.stem}\n' + '\n'.join(
-                            [f'{k} = {config_unique[k]}' for k in sorted_keys])
+                            [f'{k} = {config_unique_dict[k]}' for k in sorted_keys])
                         bbox_props = dict(facecolor='gray', alpha=0.1)
                         current_ax.text(0.05, 0.95, info_str, transform=current_ax.transAxes, fontsize=12,
                                         verticalalignment='top', bbox=bbox_props)

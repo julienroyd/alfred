@@ -1,5 +1,6 @@
 import logging
 import json
+import argparse
 from types import SimpleNamespace
 
 
@@ -107,3 +108,10 @@ def config_to_str(config):
     for arg in vars(config):
         config_string += f'\n    {arg}: {getattr(config, arg)}'
     return config_string
+
+
+def validate_config_unique(config, config_unique):
+    assert type(config) in [argparse.Namespace, SimpleNamespace]
+    assert type(config_unique) is dict
+    assert all([config.__dict__[k] == config_unique[k] for k in config_unique.keys() if k in config.__dict__.keys()]), \
+        "ERROR: config_unique.json is different than config.json"
