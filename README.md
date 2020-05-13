@@ -22,6 +22,7 @@ alias alretrain='python -m alfred.create_retrainbest'
 alias albench='python -m alfred.benchmark'
 alias alsync='python -m alfred.sync_wandb'
 alias alcopy='python -m alfred.copy_config'
+alias alupdate='python -m alfred.update_config_unique'
 ```
 
 ## Content

@@ -1,6 +1,7 @@
 from alfred.utils.config import *
 from alfred.utils.directory_tree import *
 from alfred.utils.misc import create_logger, select_storage_dirs
+from importlib import import_module
 
 
 def my_type_func(add_arg):
@@ -21,7 +22,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--from_file', type=str, default=None,
                         help="Path containing all the storage_names for which to create retrainBests")
-    parser.add_argument('--storage_name', type=str, required=True)
+    parser.add_argument('--storage_name', type=str, default=None)
     parser.add_argument('--over_tasks', type=parse_bool, default=False,
                         help="If true, subprocesses will create retrainBests for all storage_dir "
                              "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
@@ -46,6 +47,13 @@ def copy_configs(from_file, storage_name, over_tasks, new_desc, additional_param
     # Sanity-check that storages exist
 
     storage_dirs = [storage_dir for storage_dir in storage_dirs if sanity_check_exists(storage_dir, logger)]
+
+    # Imports schedule file to have same settings for DirectoryTree.git_repos_to_track
+
+    if from_file:
+        schedule_file = str([path for path in Path(from_file).parent.iterdir() if 'schedule' in path.name and path.name.endswith('.py')][0])
+        schedule_module = ".".join(schedule_file.split('/')).strip('.py')
+        schedule = import_module(schedule_module)
 
     for storage_to_copy in storage_dirs:
         seeds_to_copy = get_all_seeds(storage_to_copy)
