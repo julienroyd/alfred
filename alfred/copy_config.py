@@ -11,8 +11,12 @@ def my_type_func(add_arg):
         val = float(val)
     elif val == "None":
         val = None
+    elif val == "False":
+        val = False
     elif typ == 'str':
         val = str(val)
+    elif typ == 'int':
+        val = int(val)
     else:
         raise NotImplementedError
     return name, val
