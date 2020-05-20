@@ -1,6 +1,6 @@
 from alfred.utils.config import parse_bool, load_dict_from_json, save_dict_to_json
 from alfred.utils.misc import create_logger, select_storage_dirs
-from alfred.utils.directory_tree import DirectoryTree, get_root
+from alfred.utils.directory_tree import DirectoryTree, get_root, sanity_check_exists
 from alfred.utils.recorder import Recorder
 from alfred.utils.plots import create_fig, bar_chart, plot_curves, plot_vertical_densities
 from alfred.utils.stats import get_95_confidence_interval_of_sequence, get_95_confidence_interval
@@ -906,6 +906,10 @@ if __name__ == '__main__':
                                        storage_name=benchmark_args.storage_names,
                                        over_tasks=False,
                                        root_dir=benchmark_args.root_dir)
+
+    # Sanity-check that storages exist
+
+    storage_dirs = [storage_dir for storage_dir in storage_dirs if sanity_check_exists(storage_dir, logger)]
 
     # convert them to storage_name to be compatible with the function called down the line
 
