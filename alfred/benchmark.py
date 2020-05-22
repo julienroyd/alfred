@@ -161,7 +161,7 @@ def _compute_seed_scores(storage_dir, performance_metric, performance_aggregatio
 
             elif performance_aggregation == 'mean_on_last_20_percents':
                 eighty_percent_index = int(0.8*len(performance_data))
-                score = np.mean(performance_data[eighty_percent_index:-1])
+                score = np.mean(performance_data[eighty_percent_index:])
             else:
                 raise NotImplementedError
 
