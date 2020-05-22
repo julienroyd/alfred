@@ -390,7 +390,7 @@ def _gather_experiments_training_curves(storage_dir, graph_key, curve_key, logge
                 y_data[outer_key][inner_key] = []
 
             x_data[outer_key][inner_key].append(loaded_recorder.tape[x_metric])
-            y_data[outer_key][inner_key].append(loaded_recorder.tape[y_metric])
+            y_data[outer_key][inner_key].append(loaded_recorder.tape[y_metric])  # TODO: make sure that this is a scalar metric, even for eval_return (and not 10 points for every eval_step). All metrics saved in the recorder should be scalars for every time point.
 
     return x_data, y_data
 
