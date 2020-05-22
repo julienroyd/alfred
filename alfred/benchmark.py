@@ -422,6 +422,7 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
     elif n_graphs > 1:
         i_max = int(np.ceil(np.sqrt(len(y_data.keys()))))
         axes_shape = (i_max, int(np.ceil(len(y_data.keys()) / i_max)))
+
     else:
         axes_shape = (1, 1)
 
@@ -441,7 +442,6 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
 
     if additional_curves_file is not None:
         additional_curves = load_dict_from_json(additional_curves_file)
-
     else:
         additional_curves = None
 
@@ -594,8 +594,6 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curve
         all_performance_metrics.append(scores_info['performance_metric'])
         all_performance_aggregation.append(scores_info['performance_aggregation'])
 
-        # Taking the mean across seeds and evaluation-runs for each experiment
-
         x = list(scores.keys())[0]
         storage_name = storage_dir.name
 
@@ -607,7 +605,7 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curve
 
         # Taking the mean across evaluations and seeds
 
-        _, _, _, task_name, _ = DirectoryTree.extract_info_from_storage_name(storage_dir.name)
+        _, _, _, task_name, _ = DirectoryTree.extract_info_from_storage_name(storage_name)
         all_means[task_name][storage_name] = [array.mean() for array in scores[x].values()]
 
         if task_name not in long_labels.keys():
@@ -641,6 +639,7 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curve
     elif n_graphs > 1:
         i_max = int(np.ceil(np.sqrt(len(all_means.keys()))))
         axes_shape = (i_max, int(np.ceil(len(all_means.keys()) / i_max)))
+
     else:
         axes_shape = (1, 1)
 
@@ -712,8 +711,7 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curve
     for storage_dir in storage_dirs:
         os.makedirs(storage_dir / save_dir, exist_ok=True)
 
-        fig.savefig(storage_dir / save_dir / f'{save_dir}_vertical_densities_{filename_addon}.pdf',
-                    bbox_inches="tight")
+        fig.savefig(storage_dir / save_dir / f'{save_dir}_vertical_densities_{filename_addon}.pdf', bbox_inches="tight")
 
         save_dict_to_json([str(storage_dir) in storage_dirs],
                           storage_dir / save_dir / f'{save_dir}_vertical_densities_sources.json')
