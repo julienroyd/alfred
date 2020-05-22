@@ -854,8 +854,8 @@ def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_d
     return
 
 
-def compare_searches(storage_names, y_error_bars, performance_metric, performance_aggregation, visuals_file,
-                     additional_curves_files, re_run_if_exists, logger, root_dir, n_eval_runs):
+def compare_searches(storage_names, x_metric, y_metric, y_error_bars, performance_metric, performance_aggregation,
+                     visuals_file, additional_curves_files, re_run_if_exists, logger, root_dir, n_eval_runs):
     """
     compare_searches compare several storage_dirs
     """
@@ -872,8 +872,8 @@ def compare_searches(storage_names, y_error_bars, performance_metric, performanc
         if not (storage_dir / "summary" / f"summary_seed_scores.pkl").exists() or re_run_if_exists:
             summarize_search(storage_name=storage_dir.name,
                              n_eval_runs=n_eval_runs,
-                             x_metric="episode",
-                             y_metric="eval_return",
+                             x_metric=x_metric,
+                             y_metric=y_metric,
                              y_error_bars=y_error_bars,
                              performance_metric=performance_metric,
                              performance_aggregation=performance_aggregation,
@@ -937,8 +937,8 @@ if __name__ == '__main__':
 
     if benchmark_args.benchmark_type == "compare_models":
         compare_models(storage_names=benchmark_args.storage_names,
-                       x_metric="episode",
-                       y_metric="eval_return",
+                       x_metric=benchmark_args.x_metric,
+                       y_metric=benchmark_args.y_metric,
                        y_error_bars=benchmark_args.y_error_bars,
                        visuals_file=visuals_file,
                        additional_curves_file=additional_curves_file,
@@ -953,6 +953,8 @@ if __name__ == '__main__':
 
     elif benchmark_args.benchmark_type == "compare_searches":
         compare_searches(storage_names=benchmark_args.storage_names,
+                         x_metric=benchmark_args.x_metric,
+                         y_metric=benchmark_args.y_metric,
                          y_error_bars=benchmark_args.y_error_bars,
                          performance_metric=benchmark_args.performance_metric,
                          performance_aggregation=benchmark_args.performance_aggregation,
