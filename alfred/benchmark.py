@@ -421,8 +421,7 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
 
     elif n_graphs > 1:
         i_max = int(np.ceil(np.sqrt(len(y_data.keys()))))
-        axes_shape = (i_max, int(np.ceil(len(y_data.keys()) / i_max)))
-
+        axes_shape = (int(np.ceil(len(y_data.keys()) / i_max)), i_max)
     else:
         axes_shape = (1, 1)
 
@@ -638,8 +637,7 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curve
 
     elif n_graphs > 1:
         i_max = int(np.ceil(np.sqrt(len(all_means.keys()))))
-        axes_shape = (i_max, int(np.ceil(len(all_means.keys()) / i_max)))
-
+        axes_shape = (int(np.ceil(len(all_means.keys()) / i_max)), i_max)
     else:
         axes_shape = (1, 1)
 
