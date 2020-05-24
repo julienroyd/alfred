@@ -17,6 +17,7 @@ from collections import OrderedDict
 import seaborn as sns
 import pathlib
 from pathlib import Path
+import shutil
 
 sns.set()
 sns.set_style('whitegrid')
@@ -799,6 +800,10 @@ def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_d
     assert type(storage_name) is str
 
     storage_dir = get_root(root_dir) / storage_name
+
+    if re_run_if_exists and (storage_dir / "summary").exists():
+        shutil.rmtree(storage_dir / "summary")
+
 
     if make_learning_plots:
         logger.debug(f'\n{"benchmark_learning".upper()}:')
