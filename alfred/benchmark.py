@@ -308,6 +308,8 @@ def _make_benchmark_performance_figure(storage_dirs, save_dir, y_error_bars, log
     ax.text(0.80, 0.95, info_str, transform=ax.transAxes, fontsize=12,
             verticalalignment='top', bbox=dict(facecolor='gray', alpha=0.1))
 
+    plt.tight_layout()
+
     # Saves storage_dirs from which the graph was created for traceability
 
     for storage_dir in storage_dirs:
@@ -404,6 +406,7 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
     y_data_err_up = OrderedDict()
     y_data_err_down = OrderedDict()
     long_labels = OrderedDict()
+    titles = OrderedDict()
     labels = OrderedDict()
     colors = OrderedDict()
     markers = OrderedDict()
@@ -502,6 +505,11 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
 
         # Sets visuals
 
+        if type(visuals) is dict and 'titles_dict' in visuals.keys():
+            titles[outer_key] = visuals['titles_dict'][outer_key]
+        else:
+            titles[outer_key] = outer_key
+
         if type(visuals) is dict and 'labels_dict' in visuals.keys():
             labels[outer_key] = [visuals['labels_dict'][alg] for alg in algs]
         else:
@@ -536,7 +544,7 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                     markers=markers[outer_key],
                     xlabel=x_metric,
                     ylabel=y_metric,
-                    title=outer_key.upper(),
+                    title=titles[outer_key].upper(),
                     add_legend=True if i == (len(list(y_data.keys())) - 1) else False,
                     legend_outside=True,
                     legend_loc="lower left",
@@ -559,6 +567,7 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curve
 
     all_means = OrderedDict()
     long_labels = OrderedDict()
+    titles = OrderedDict()
     labels = OrderedDict()
     colors = OrderedDict()
     markers = OrderedDict()
@@ -668,6 +677,11 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curve
 
         # Sets visuals
 
+        if type(visuals) is dict and 'titles_dict' in visuals.keys():
+            titles[task_name] = visuals['titles_dict'][task_name]
+        else:
+            titles[task_name] = task_name
+
         if type(visuals) is dict and 'labels_dict' in visuals.keys():
             labels[task_name] = [visuals['labels_dict'][alg] for alg in algs]
         else:
@@ -697,7 +711,7 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curve
                                 labels=labels[task_name],
                                 colors=colors[task_name],
                                 make_boxplot=make_box_plot,
-                                title=task_name.upper(),
+                                title=titles[task_name].upper(),
                                 ylabel=f"{actual_performance_aggregation}-{actual_performance_metric}",
                                 hlines=hlines)
 
