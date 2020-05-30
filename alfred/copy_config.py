@@ -73,7 +73,7 @@ def copy_configs(from_file, storage_name, over_tasks, new_desc, additional_param
         # extract storage name info
 
         _, _, _, _, old_desc = \
-            DirectoryTree.extract_info_from_storage_name(str(storage_to_copy))
+            DirectoryTree.extract_info_from_storage_name(storage_to_copy.name)
 
         # overwrites it
 
