@@ -41,10 +41,13 @@ def create_new_filehandler(logger_name, logfile):
 
 
 def keep_two_signif_digits(x):
-    if x == 0.:
+    try:
+        if x == 0.:
+            return x
+        else:
+            return round(x, -int(floor(log10(abs(x))) - 1))
+    except:
         return x
-    else:
-        return round(x, -int(floor(log10(abs(x))) - 1))
 
 
 def sorted_nicely(l):
