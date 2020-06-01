@@ -87,7 +87,12 @@ def create_retrain_best(from_file, storage_name, over_tasks, n_retrain_seeds, ro
 
                 # Retrain experiments run for twice as long
 
-                config_dict['max_episodes'] *= 2
+                if config_dict['max_episodes'] is not None:
+                    config_dict['max_episodes'] *= 2
+                elif config_dict['max_steps'] is not None:
+                    config_dict['max_steps'] *= 2
+                else:
+                    raise ValueError("At least one of max_episodes or max_steps should be defined")
 
                 # Updates the description
 
