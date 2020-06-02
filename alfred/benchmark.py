@@ -420,6 +420,8 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
     y_data_err_down = OrderedDict()
     long_labels = OrderedDict()
     titles = OrderedDict()
+    x_axis_titles = OrderedDict()
+    y_axis_titles = OrderedDict()
     labels = OrderedDict()
     colors = OrderedDict()
     markers = OrderedDict()
@@ -523,6 +525,13 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
         else:
             titles[outer_key] = outer_key
 
+        if type(visuals) is dict and 'axis_titles_dict' in visuals.keys():
+            x_axis_titles[outer_key] = visuals['axis_titles_dict'][x_metric]
+            y_axis_titles[outer_key] = visuals['axis_titles_dict'][y_metric]
+        else:
+            x_axis_titles[outer_key] = x_metric
+            y_axis_titles[outer_key] = y_metric
+
         if type(visuals) is dict and 'labels_dict' in visuals.keys():
             labels[outer_key] = [visuals['labels_dict'][alg] for alg in algs]
         else:
@@ -555,8 +564,8 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                     labels=labels[outer_key],
                     colors=colors[outer_key],
                     markers=markers[outer_key],
-                    xlabel=x_metric,
-                    ylabel=y_metric,
+                    xlabel=x_axis_titles[outer_key],
+                    ylabel=y_axis_titles[outer_key],
                     title=titles[outer_key].upper(),
                     add_legend=True if i == (len(list(y_data.keys())) - 1) else False,
                     legend_outside=True,
