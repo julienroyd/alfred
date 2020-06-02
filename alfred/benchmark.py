@@ -18,6 +18,7 @@ import seaborn as sns
 import pathlib
 from pathlib import Path
 import shutil
+import math
 
 sns.set()
 sns.set_style('whitegrid')
@@ -324,6 +325,18 @@ def _make_benchmark_performance_figure(storage_dirs, save_dir, y_error_bars, log
                           storage_dir / save_dir / f'{save_dir}_performance_sources.json')
 
     plt.close(fig)
+
+    # SANITY-CHECKS that no seeds has a Nan score to avoid making create best on it
+
+    expe_with_nan_scores=[]
+    for outer_key in scores.keys():
+        for inner_key, indiv_score in scores[outer_key].items():
+            if math.isnan(indiv_score.mean()):
+                expe_with_nan_scores.append(outer_key+"/experiment" + inner_key)
+
+    if len(expe_with_nan_scores)>0:
+        raise ValueError(f'Some experiments have nan scores. Remove them from storage and clean summary folder to continue\n'
+                         f'experiments with Nan Scores:\n' + '\n'.join(expe_with_nan_scores))
 
     return sorted_inner_keys
 
