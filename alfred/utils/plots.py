@@ -64,7 +64,7 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
         labels = [None] * len(ys)
 
     # Plots losses and smoothed losses for every agent
-
+    n = len(xs)
     for i, (x, y) in enumerate(zip(xs, ys)):
 
         if markevery is None:
@@ -74,21 +74,21 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
 
         if fill_up is not None and fill_down is not None:
             ax.plot(x, y, color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize,
-                    label=labels[i])
-            ax.fill_between(x, y - fill_down[i], y + fill_up[i], color=colors[i], alpha=alpha_fill)
+                    label=labels[i], zorder=n-i)
+            ax.fill_between(x, y - fill_down[i], y + fill_up[i], color=colors[i], alpha=alpha_fill, zorder=n-i)
 
         # Smooth curve using running average
 
         elif smooth:
             ax.plot(x, y, color=colors[i], alpha=3 * alpha_fill)
             ax.plot(x, smooth_out(y), color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize,
-                    label=labels[i])
+                    label=labels[i], zorder=n-i)
 
         # Just regular curve
 
         else:
             ax.plot(x, y, color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize,
-                    label=labels[i])
+                    label=labels[i], zorder=n-i)
 
     # Axis settings
 
