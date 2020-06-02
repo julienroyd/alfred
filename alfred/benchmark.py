@@ -555,15 +555,20 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                     labels=labels[outer_key],
                     colors=colors[outer_key],
                     markers=markers[outer_key],
-                    xlabel=x_metric,
-                    ylabel=y_metric,
+                    xlabel="Environment steps",
+                    ylabel="Evaluation return",
                     title=titles[outer_key].upper(),
                     add_legend=True if i == (len(list(y_data.keys())) - 1) else False,
                     legend_outside=True,
                     legend_loc="lower left",
-                    legend_pos=(1.05, 0.),
+                    legend_pos=(1.05, -0.),
                     legend_n_columns=1,  # len(list(y_data_means[outer_key].values())) + len(hlines)
-                    hlines=hlines)
+                    hlines=hlines,
+                    tick_font_size=22,
+                    axis_font_size=26,
+                    legend_font_size=26,
+                    title_font_size=28,
+                    ylim=(-1500, 350) if titles[outer_key].upper() == 'LUNARLANDER-C' else (None, None))
 
     plt.tight_layout()
 

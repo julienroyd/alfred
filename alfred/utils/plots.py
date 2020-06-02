@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from collections import OrderedDict
 import numpy as np
 import seaborn as sns
+import math
 
 sns.set()
 sns.set_style('whitegrid')
@@ -65,6 +66,9 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
 
     # Plots losses and smoothed losses for every agent
     n = len(xs)
+    minimal_magnitude = int(math.log10(np.min([np.min(x) for x in xs])))
+    scale_x = 10**minimal_magnitude
+    xs = [[xi/scale_x for xi in x] for x in xs]
     for i, (x, y) in enumerate(zip(xs, ys)):
 
         if markevery is None:
@@ -93,7 +97,7 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
     # Axis settings
 
     ax.set_title(title, fontsize=title_font_size)
-    ax.set_xlabel(xlabel, fontsize=axis_font_size)
+    ax.set_xlabel(xlabel + f" x 1e{-minimal_magnitude}", fontsize=axis_font_size)
     ax.set_ylabel(ylabel, fontsize=axis_font_size)
 
     ax.set_xlim(*xlim)
@@ -108,9 +112,10 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
             ax.hlines(**hline)
 
     ax.set_ylim(*ylim)
-
+    # ax.ticklabel_format(axis='x', style='scientific', scilimits=(minimal_magnitude, minimal_magnitude))
     ax.yaxis.set_major_locator(plt.MaxNLocator(5))
     ax.tick_params(axis='both', which='major', labelsize=tick_font_size)
+
 
     # Legend settings
 
