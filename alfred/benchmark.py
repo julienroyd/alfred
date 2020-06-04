@@ -186,8 +186,7 @@ def _compute_seed_scores(storage_dir, performance_metric, performance_aggregatio
     save_dict_to_json(scores_info, filename=str(storage_dir / save_dir / f"{save_dir}_seed_scores_info.json"))
 
 
-def _make_benchmark_performance_figure(storage_dirs, save_dir, y_error_bars, logger, normalize_with_first_model=True,
-                                       sort_bars=False):
+def _gather_scores(storage_dirs, save_dir, y_error_bars, logger, normalize_with_first_model=True, sort_bars=False):
     # Initialize containers
 
     scores_means = OrderedDict()
@@ -283,6 +282,19 @@ def _make_benchmark_performance_figure(storage_dirs, save_dir, y_error_bars, log
             else:
                 raise NotImplementedError
 
+    return scores, scores_means, scores_err_up, scores_err_down, sorted_inner_keys, reference_key
+
+
+def _make_benchmark_performance_figure(storage_dirs, save_dir, y_error_bars, logger, normalize_with_first_model=True,
+                                       sort_bars=False):
+    scores, scores_means, scores_err_up, scores_err_down, sorted_inner_keys, reference_key = _gather_scores(
+        storage_dirs=storage_dirs,
+        save_dir=save_dir,
+        y_error_bars=y_error_bars,
+        logger=logger,
+        normalize_with_first_model=normalize_with_first_model,
+        sort_bars=sort_bars)
+
     # Creates the graph
 
     n_bars_per_group = len(scores_means.keys())
@@ -299,7 +311,7 @@ def _make_benchmark_performance_figure(storage_dirs, save_dir, y_error_bars, log
 
     n_training_seeds = scores[reference_key][list(scores_means[reference_key].keys())[0]].shape[0]
 
-    scores_info = load_dict_from_json(filename=str(storage_dir / save_dir / f"{save_dir}_seed_scores_info.json"))
+    scores_info = load_dict_from_json(filename=str(storage_dirs[0] / save_dir / f"{save_dir}_seed_scores_info.json"))
 
     info_str = f"{n_training_seeds} training seeds" \
                f"\nn_eval_runs={scores_info['n_eval_runs']}" \
