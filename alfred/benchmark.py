@@ -627,19 +627,19 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curve
 
         # Adding task_name if first time it is encountered
 
-        _, _, _, task_name, _ = DirectoryTree.extract_info_from_storage_name(storage_name)
-        if task_name not in list(all_means.keys()):
-            all_means[task_name] = OrderedDict()
+        _, _, _, outer_key, _ = DirectoryTree.extract_info_from_storage_name(storage_name)
+        if outer_key not in list(all_means.keys()):
+            all_means[outer_key] = OrderedDict()
 
         # Taking the mean across evaluations and seeds
 
-        _, _, _, task_name, _ = DirectoryTree.extract_info_from_storage_name(storage_name)
-        all_means[task_name][storage_name] = [array.mean() for array in scores[x].values()]
+        _, _, _, outer_key, _ = DirectoryTree.extract_info_from_storage_name(storage_name)
+        all_means[outer_key][storage_name] = [array.mean() for array in scores[x].values()]
 
-        if task_name not in long_labels.keys():
-            long_labels[task_name] = [storage_dir]
+        if outer_key not in long_labels.keys():
+            long_labels[outer_key] = [storage_dir]
         else:
-            long_labels[task_name].append(storage_dir)
+            long_labels[outer_key].append(storage_dir)
 
     # Security checks
 
@@ -675,7 +675,7 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curve
     gs = gridspec.GridSpec(*axes_shape)
     fig = plt.figure(figsize=(12 * axes_shape[1], 5 * axes_shape[0]))
 
-    for i, task_name in enumerate(all_means.keys()):
+    for i, outer_key in enumerate(all_means.keys()):
 
         # Selects right ax object
 
@@ -688,9 +688,9 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curve
 
         # Collect algorithm names
 
-        if all([type(long_label) is pathlib.PosixPath for long_label in long_labels[task_name]]):
+        if all([type(long_label) is pathlib.PosixPath for long_label in long_labels[outer_key]]):
             algs = []
-            for path in long_labels[task_name]:
+            for path in long_labels[outer_key]:
                 _, _, alg, _, _ = DirectoryTree.extract_info_from_storage_name(path.name)
                 algs.append(alg)
 
@@ -705,47 +705,46 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curve
 
         if additional_curves_file is not None:
             additional_curves = load_dict_from_json(additional_curves_file)
-
         else:
             additional_curves = None
 
         # Sets visuals
 
         if type(visuals) is dict and 'titles_dict' in visuals.keys():
-            titles[task_name] = visuals['titles_dict'][task_name]
+            titles[outer_key] = visuals['titles_dict'][outer_key]
         else:
-            titles[task_name] = task_name
+            titles[outer_key] = outer_key
 
         if type(visuals) is dict and 'labels_dict' in visuals.keys():
-            labels[task_name] = [visuals['labels_dict'][alg] for alg in algs]
+            labels[outer_key] = [visuals['labels_dict'][alg] for alg in algs]
         else:
-            labels[task_name] = long_labels[task_name]
+            labels[outer_key] = long_labels[outer_key]
 
         if type(visuals) is dict and 'colors_dict' in visuals.keys():
-            colors[task_name] = [visuals['colors_dict'][alg] for alg in algs]
+            colors[outer_key] = [visuals['colors_dict'][alg] for alg in algs]
         else:
-            colors[task_name] = [None for _ in long_labels[task_name]]
+            colors[outer_key] = [None for _ in long_labels[outer_key]]
 
         if type(visuals) is dict and 'markers_dict' in visuals.keys():
-            markers[task_name] = [visuals['markers_dict'][alg] for alg in algs]
+            markers[outer_key] = [visuals['markers_dict'][alg] for alg in algs]
         else:
-            markers[task_name] = [None for _ in long_labels[task_name]]
+            markers[outer_key] = [None for _ in long_labels[outer_key]]
 
-        logger.info(f"Graph for {task_name}:\n\tlabels={labels}\n\tcolors={colors}\n\tmarkers={markers}")
-
-        # Makes the plots
+        logger.info(f"Graph for {outer_key}:\n\tlabels={labels}\n\tcolors={colors}\n\tmarkers={markers}")
 
         if additional_curves_file is not None:
-            hlines = additional_curves['hlines'][task_name]
+            hlines = additional_curves['hlines'][outer_key]
         else:
             hlines = None
 
+        # Makes the plots
+
         plot_vertical_densities(ax=current_ax,
-                                ys=list(all_means[task_name].values()),
-                                labels=labels[task_name],
-                                colors=colors[task_name],
+                                ys=list(all_means[outer_key].values()),
+                                labels=labels[outer_key],
+                                colors=colors[outer_key],
                                 make_boxplot=make_box_plot,
-                                title=titles[task_name].upper(),
+                                title=titles[outer_key].upper(),
                                 ylabel=f"{actual_performance_aggregation}-{actual_performance_metric}",
                                 hlines=hlines)
 
