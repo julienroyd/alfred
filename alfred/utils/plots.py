@@ -47,9 +47,9 @@ def bar_chart(ax, scores, err_up=None, err_down=None, capsize=10., colors=None,
 
 def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, markevery=None, labels=None,
                 xlabel="", ylabel="", xlim=(None, None), ylim=(None, None), axis_font_size=22, tick_font_size=18,
-                title="", title_font_size=24, fill_up=None, fill_down=None, alpha_fill=0.1, smooth=False,
-                add_legend=True, legend_outside=False, legend_font_size=20, legend_pos=(0.5, -0.2),
-                legend_loc="upper center", legend_n_columns=1,
+                title="", title_font_size=24, fill_up=None, fill_down=None, alpha_fill=0.1, error_up=None, error_down=None,
+                smooth=False, add_legend=True, legend_outside=False, legend_font_size=20, legend_pos=(0.5, -0.2),
+                legend_loc="upper center", legend_n_columns=1, legend_marker_first=True,
                 hlines=None):
     if xs is None:
         xs = [range(len(y)) for y in ys]
@@ -77,7 +77,13 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
                     label=labels[i], zorder=n-i)
             ax.fill_between(x, y - fill_down[i], y + fill_up[i], color=colors[i], alpha=alpha_fill, zorder=n-i)
 
-        # Smooth curve using running average
+        # OR: Adds error bars above and below each datapoint
+
+        if error_up is not None and error_down is not None:
+            ax.errorbar(x, y, color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize,
+                    label=labels[i], zorder=n - i, yerr=[error_down[i], error_up[i]])
+
+        # OR: Smooth curve using running average
 
         elif smooth:
             ax.plot(x, y, color=colors[i], alpha=3 * alpha_fill)
@@ -118,7 +124,7 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
 
         if legend_outside:
             if add_legend:
-                legend = ax.legend(loc=legend_loc, framealpha=0.25, bbox_to_anchor=legend_pos,
+                legend = ax.legend(loc=legend_loc, framealpha=0.25, bbox_to_anchor=legend_pos, markerfirst=legend_marker_first,
                                    fancybox=True, shadow=False, ncol=legend_n_columns, fontsize=legend_font_size)
                 for legobj in legend.legendHandles:
                     legobj.set_linewidth(2.0)
