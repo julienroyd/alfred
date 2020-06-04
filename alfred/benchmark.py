@@ -461,20 +461,6 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
     gs = gridspec.GridSpec(*axes_shape)
     fig = plt.figure(figsize=(12 * axes_shape[1], 5 * axes_shape[0]))
 
-    # Loads visuals dictionaries
-
-    if visuals_file is not None:
-        visuals = load_dict_from_json(visuals_file)
-    else:
-        visuals = None
-
-    # Loads additional curves file
-
-    if additional_curves_file is not None:
-        additional_curves = load_dict_from_json(additional_curves_file)
-    else:
-        additional_curves = None
-
     # Compute means and stds for all inner_key curve from raw data
 
     for i, outer_key in enumerate(y_data.keys()):
@@ -529,6 +515,20 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
             for path in long_labels[outer_key]:
                 _, _, alg, _, _ = DirectoryTree.extract_info_from_storage_name(path.name)
                 algs.append(alg)
+
+        # Loads visuals dictionaries
+
+        if visuals_file is not None:
+            visuals = load_dict_from_json(visuals_file)
+        else:
+            visuals = None
+
+        # Loads additional curves file
+
+        if additional_curves_file is not None:
+            additional_curves = load_dict_from_json(additional_curves_file)
+        else:
+            additional_curves = None
 
         # Sets visuals
 
@@ -607,21 +607,6 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curve
     markers = OrderedDict()
     all_performance_metrics = []
     all_performance_aggregation = []
-
-    # Loads visuals dictionaries
-
-    if visuals_file is not None:
-        visuals = load_dict_from_json(visuals_file)
-    else:
-        visuals = None
-
-    # Loads additional curves file
-
-    if additional_curves_file is not None:
-        additional_curves = load_dict_from_json(additional_curves_file)
-
-    else:
-        additional_curves = None
 
     # Gathers data
 
@@ -708,6 +693,21 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curve
             for path in long_labels[task_name]:
                 _, _, alg, _, _ = DirectoryTree.extract_info_from_storage_name(path.name)
                 algs.append(alg)
+
+        # Loads visuals dictionaries
+
+        if visuals_file is not None:
+            visuals = load_dict_from_json(visuals_file)
+        else:
+            visuals = None
+
+        # Loads additional curves file
+
+        if additional_curves_file is not None:
+            additional_curves = load_dict_from_json(additional_curves_file)
+
+        else:
+            additional_curves = None
 
         # Sets visuals
 
