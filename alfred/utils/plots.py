@@ -79,7 +79,7 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
 
         # OR: Adds error bars above and below each datapoint
 
-        if error_up is not None and error_down is not None:
+        elif error_up is not None and error_down is not None:
             ax.errorbar(x, y, color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize,
                     label=labels[i], zorder=n - i, yerr=[error_down[i], error_up[i]])
 
