@@ -405,8 +405,17 @@ def _gather_experiments_training_curves(storage_dir, graph_key, curve_key, logge
                 x_data[outer_key][inner_key] = []
                 y_data[outer_key][inner_key] = []
 
-            x_data[outer_key][inner_key].append(loaded_recorder.tape[x_metric])
-            y_data[outer_key][inner_key].append(loaded_recorder.tape[y_metric])  # TODO: make sure that this is a scalar metric, even for eval_return (and not 10 points for every eval_step). All metrics saved in the recorder should be scalars for every time point.
+            # Override the x_metric we collect depending on the env
+            x_metric_to_collect = {'cartpole': 'episode',
+                                   'mountaincar': 'episode',
+                                   'lunarlander': 'episode',
+                                   'pendulum': 'total_steps',
+                                   'mountaincar-c': 'total_steps',
+                                   'lunarlander-c': 'total_steps'}
+
+            x_data[outer_key][inner_key].append(loaded_recorder.tape[x_metric_to_collect[outer_key]])
+            y_data[outer_key][inner_key].append(loaded_recorder.tape[
+                                                    y_metric])  # TODO: make sure that this is a scalar metric, even for eval_return (and not 10 points for every eval_step). All metrics saved in the recorder should be scalars for every time point.
 
     return x_data, y_data
 
@@ -445,7 +454,7 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
     # Creates figure
 
     gs = gridspec.GridSpec(*axes_shape)
-    fig = plt.figure(figsize=(12 * axes_shape[1], 5 * axes_shape[0]))
+    fig = plt.figure(figsize=(8 * axes_shape[1], 5 * axes_shape[0]))
 
     # Loads visuals dictionaries
 
@@ -545,41 +554,64 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
         else:
             hlines = None
 
+        # Override the x_label we collect depending on the env
+        x_label_to_plot = {'cartpole': 'Episodes',
+                           'mountaincar': 'Episodes',
+                           'lunarlander': 'Episodes',
+                           'pendulum': 'Environment steps',
+                           'mountaincar-c': 'Environment steps',
+                           'lunarlander-c': 'Environment steps'}
+
         # Plots the curves
 
-        plot_curves(current_ax,
-                    xs=list(x_data[outer_key].values()),
-                    ys=list(y_data_means[outer_key].values()),
-                    fill_up=list(y_data_err_up[outer_key].values()),
-                    fill_down=list(y_data_err_down[outer_key].values()),
-                    labels=labels[outer_key],
-                    colors=colors[outer_key],
-                    markers=markers[outer_key],
-                    xlabel="Environment steps",
-                    ylabel="Evaluation return",
-                    title=titles[outer_key].upper(),
-                    add_legend=True if i == (len(list(y_data.keys())) - 1) else False,
-                    legend_outside=True,
-                    legend_loc="lower left",
-                    legend_pos=(1.05, -0.),
-                    legend_n_columns=1,  # len(list(y_data_means[outer_key].values())) + len(hlines)
-                    hlines=hlines,
-                    tick_font_size=22,
-                    axis_font_size=26,
-                    legend_font_size=26,
-                    title_font_size=28,
-                    ylim=(-1500, 350) if titles[outer_key].upper() == 'LUNARLANDER-C' else (None, None))
+        handles, leg_labels = plot_curves(current_ax,
+                                          xs=list(x_data[outer_key].values()),
+                                          ys=list(y_data_means[outer_key].values()),
+                                          fill_up=list(y_data_err_up[outer_key].values()),
+                                          fill_down=list(y_data_err_down[outer_key].values()),
+                                          labels=labels[outer_key],
+                                          colors=colors[outer_key],
+                                          markers=markers[outer_key],
+                                          xlabel=x_label_to_plot[outer_key],
+                                          ylabel="Evaluation return" if i % 3 == 0 else None,
+                                          title=titles[outer_key].upper(),
+                                          add_legend=False,
+                                          legend_outside=True,
+                                          legend_loc="lower center",
+                                          legend_pos=(-1., -1.),
+                                          legend_n_columns=len(list(y_data_means[outer_key].values())) + len(hlines),
+                                          hlines=hlines,
+                                          tick_font_size=22,
+                                          axis_font_size=26,
+                                          legend_font_size=26,
+                                          title_font_size=28,
+                                          ylim=(-1500, 350) if titles[outer_key].upper() == 'LUNARLANDER-C' else (
+                                              None, None))
 
-    plt.tight_layout()
+    # Sets legend to figure and not to subplot
+
+    legend = fig.legend(handles=handles, labels=leg_labels, loc="lower center", framealpha=0.25,
+                        bbox_to_anchor=(0.525, 0.),
+                        fancybox=True, shadow=False, ncol=len(list(y_data_means[outer_key].values())) + len(hlines),
+                        fontsize=26)
+    # for legobj in legend.legendHandles:
+    #     legobj.set_linewidth(2.0)
+    # for text in legend.get_texts():
+    #     text.set_ha('left')
+
+    plt.tight_layout(h_pad=2.5)
+    fig.subplots_adjust(bottom=0.20)
 
     for storage_dir in storage_dirs:
         os.makedirs(storage_dir / save_dir, exist_ok=True)
-        fig.savefig(storage_dir / save_dir / f'{save_dir}_learning.pdf', bbox_inches='tight')
+        fig.savefig(storage_dir / save_dir / f'{save_dir}_learning.pdf', bbox_inches='tight',
+                    bbox_extra_artists=(legend,))
 
     plt.close(fig)
 
 
-def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curves_file, make_box_plot, queried_performance_metric,
+def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curves_file, make_box_plot,
+                                    queried_performance_metric,
                                     queried_performance_aggregation, save_dir, load_dir, logger):
     # Initialize container
 
@@ -835,7 +867,6 @@ def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_d
 
     if re_run_if_exists and (storage_dir / "summary").exists():
         shutil.rmtree(storage_dir / "summary")
-
 
     if make_learning_plots:
         logger.debug(f'\n{"benchmark_learning".upper()}:')

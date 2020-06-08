@@ -66,9 +66,14 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
 
     # Plots losses and smoothed losses for every agent
     n = len(xs)
-    minimal_magnitude = int(math.log10(np.min([np.min(x) for x in xs])))
-    scale_x = 10**minimal_magnitude
-    xs = [[xi/scale_x for xi in x] for x in xs]
+
+    # Overrides x-data magnitude
+    if xlabel == "Environment steps":
+        minimal_magnitude = int(math.log10(np.min([np.min(x) for x in xs])))
+        scale_x = 10**minimal_magnitude
+        xs = [[xi/scale_x for xi in x] for x in xs]
+        xlabel = xlabel + f" x 1e{-minimal_magnitude}"
+
     for i, (x, y) in enumerate(zip(xs, ys)):
 
         if markevery is None:
@@ -77,7 +82,7 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
         # Adds filling around curve (central tendency)
 
         if fill_up is not None and fill_down is not None:
-            ax.plot(x, y, color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize,
+            l1 = ax.plot(x, y, color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize,
                     label=labels[i], zorder=n-i)
             ax.fill_between(x, y - fill_down[i], y + fill_up[i], color=colors[i], alpha=alpha_fill, zorder=n-i)
 
@@ -85,19 +90,20 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
 
         elif smooth:
             ax.plot(x, y, color=colors[i], alpha=3 * alpha_fill)
-            ax.plot(x, smooth_out(y), color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize,
+            l1 = ax.plot(x, smooth_out(y), color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize,
                     label=labels[i], zorder=n-i)
 
         # Just regular curve
 
         else:
-            ax.plot(x, y, color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize,
+            l1 = ax.plot(x, y, color=colors[i], marker=markers[i], markevery=markevery, markersize=markersize,
                     label=labels[i], zorder=n-i)
+
 
     # Axis settings
 
     ax.set_title(title, fontsize=title_font_size)
-    ax.set_xlabel(xlabel + f" x 1e{-minimal_magnitude}", fontsize=axis_font_size)
+    ax.set_xlabel(xlabel, fontsize=axis_font_size)
     ax.set_ylabel(ylabel, fontsize=axis_font_size)
 
     ax.set_xlim(*xlim)
@@ -109,7 +115,7 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
 
         for hline in hlines:
             hline.update({'xmin': xmin, 'xmax': xmax})
-            ax.hlines(**hline)
+            l2 = ax.hlines(**hline)
 
     ax.set_ylim(*ylim)
     # ax.ticklabel_format(axis='x', style='scientific', scilimits=(minimal_magnitude, minimal_magnitude))
@@ -117,21 +123,28 @@ def plot_curves(ax, ys, xs=None, colors=None, markers=None, markersize=15, marke
     ax.tick_params(axis='both', which='major', labelsize=tick_font_size)
 
 
-    # Legend settings
+    # # Legend settings
+    #
+    # if not all(label is None for label in labels) and add_legend:
+    #
+    #     if legend_outside:
+    #         # # Shrink current axis's height by 10% on the bottom
+    #         # box = ax.get_position()
+    #         # ax.set_position([box.x0, box.y0 + box.height * 0.1,
+    #         #                  box.width, box.height * 0.9])
+    #         if add_legend:
+    #             legend = ax.legend(loc=legend_loc, framealpha=0.25, bbox_to_anchor=legend_pos,
+    #                                fancybox=True, shadow=False, ncol=legend_n_columns, fontsize=legend_font_size)
+    #             for legobj in legend.legendHandles:
+    #                 legobj.set_linewidth(2.0)
+    #             for text in legend.get_texts():
+    #                 text.set_ha('left')
+    #
+    #     else:
+    #         ax.legend(loc=legend_loc, framealpha=0.25, fancybox=True, shadow=False)
 
-    if not all(label is None for label in labels) and add_legend:
-
-        if legend_outside:
-            if add_legend:
-                legend = ax.legend(loc=legend_loc, framealpha=0.25, bbox_to_anchor=legend_pos,
-                                   fancybox=True, shadow=False, ncol=legend_n_columns, fontsize=legend_font_size)
-                for legobj in legend.legendHandles:
-                    legobj.set_linewidth(2.0)
-                for text in legend.get_texts():
-                    text.set_ha('left')
-
-        else:
-            ax.legend(loc=legend_loc, framealpha=0.25, fancybox=True, shadow=False)
+    handles, labels = ax.get_legend_handles_labels()
+    return handles, labels
 
 
 def plot_sampled_hyperparams(ax, param_samples, log_params):
