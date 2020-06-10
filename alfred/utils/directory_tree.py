@@ -54,7 +54,11 @@ class DirectoryTree(object):
 
         # Defines folder name
 
-        storage_name = f"{id}_{git_hashes}_{alg_name}_{task_name}_{desc}"
+        storage_name = ""
+        for item in [id,git_hashes,alg_name, task_name, desc]:
+            if item != '':
+                storage_name += f"{item}_"
+        storage_name = storage_name[:-1] # removes last underscore
 
         # Level 1: storage_dir
 
@@ -151,11 +155,18 @@ class DirectoryTree(object):
     @classmethod
     def extract_info_from_storage_name(cls, storage_name):
 
-        id = storage_name.split("_")[0]
-        git_hashes = storage_name.split("_")[1]
-        alg_name = storage_name.split("_")[2]
-        task_name = storage_name.split("_")[3]
-        desc = "_".join(storage_name.split("_")[4:])
+        try:
+            id = storage_name.split("_")[0]
+            git_hashes = storage_name.split("_")[1]
+            alg_name = storage_name.split("_")[2]
+            task_name = storage_name.split("_")[3]
+            desc = "_".join(storage_name.split("_")[4:])
+        except IndexError:
+            id = ''
+            git_hashes = ''
+            alg_name = ''
+            task_name = ''
+            desc = storage_name
 
         return id, git_hashes, alg_name, task_name, desc
 
