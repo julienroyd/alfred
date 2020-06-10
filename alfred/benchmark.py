@@ -411,7 +411,8 @@ def _gather_experiments_training_curves(storage_dir, graph_key, curve_key, logge
                                    'lunarlander': 'episode',
                                    'pendulum': 'total_steps',
                                    'mountaincar-c': 'total_steps',
-                                   'lunarlander-c': 'total_steps'}
+                                   'lunarlander-c': 'total_steps',
+                                   'learnablevsRandomPacifist1v1empty': 'episode'}
 
             x_data[outer_key][inner_key].append(loaded_recorder.tape[x_metric_to_collect[outer_key]])
             y_data[outer_key][inner_key].append(loaded_recorder.tape[
@@ -454,7 +455,7 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
     # Creates figure
 
     gs = gridspec.GridSpec(*axes_shape)
-    fig = plt.figure(figsize=(8 * axes_shape[1], 5 * axes_shape[0]))
+    fig = plt.figure(figsize=(6 * axes_shape[1], 5 * axes_shape[0]))
 
     # Loads visuals dictionaries
 
@@ -560,7 +561,10 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                            'lunarlander': 'Episodes',
                            'pendulum': 'Environment steps',
                            'mountaincar-c': 'Environment steps',
-                           'lunarlander-c': 'Environment steps'}
+                           'lunarlander-c': 'Environment steps',
+                           "learnablevsRandomPacifist1v1empty": 'Episodes'}
+
+        title_dict = {"learnablevsRandomPacifist1v1empty": "Pommerman Random-Tag"}
 
         # Plots the curves
 
@@ -574,7 +578,7 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                                           markers=markers[outer_key],
                                           xlabel=x_label_to_plot[outer_key],
                                           ylabel="Evaluation return" if i % 3 == 0 else None,
-                                          title=titles[outer_key].upper(),
+                                          title=title_dict[outer_key] if outer_key in title_dict else titles[outer_key].upper(),
                                           add_legend=False,
                                           legend_outside=True,
                                           legend_loc="lower center",
