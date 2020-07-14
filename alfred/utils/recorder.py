@@ -1,7 +1,10 @@
 import pickle
 import numpy as np
 import time
-import sys
+
+
+def remove_nones(input_list):
+    return list(filter(None, input_list))
 
 
 class Recorder(object):
