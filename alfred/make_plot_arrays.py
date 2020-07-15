@@ -8,8 +8,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from alfred.utils.misc import create_logger, select_storage_dirs
-from alfred.utils.config import load_dict_from_json, parse_bool, convert_to_type_from_str, load_config_from_json, validate_config_unique
-from alfred.utils.recorder import Recorder
+from alfred.utils.config import load_dict_from_json, parse_bool, convert_to_type_from_str, load_config_from_json, \
+    validate_config_unique
+from alfred.utils.recorder import Recorder, remove_nones
 from alfred.utils.plots import plot_curves
 from alfred.utils.directory_tree import DirectoryTree
 
@@ -31,6 +32,15 @@ def get_make_plots_args():
                         help="If true, make_plot_arrays will look for all storage_dir "
                              "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
 
+    parser.add_argument('--remove_none', type=parse_bool, default=False,
+                        help="The Recorder records None for all keys that are not specified in new_recordings "
+                             "(see alfred.utils.recorder.Recorder.write_to_tape()). That allows to associate "
+                             "all values of the recorder with each other by the moment they were recorded. "
+                             "However, because some values might be recorded much more often than others, some "
+                             "metrics will have a lot of None's on their recording-tape, which can make the plots "
+                             "look empty. Choosing --remove_nones=True removes all Nones from the tape. However "
+                             "for this to work, the choosent --x_metric's and --y_metric's sizes must match.")
+
     parser.add_argument('--root_dir', default=None, type=str)
     return parser.parse_args()
 
@@ -41,7 +51,8 @@ def plot_definition_parser(to_parse):
     return (x_metric, y_metric, (x_min, x_max), (y_min, y_max))
 
 
-def create_plot_arrays(from_file, storage_name, over_tasks, root_dir, logger, plots_to_make=DEFAULT_PLOTS_TO_MAKE):
+def create_plot_arrays(from_file, storage_name, over_tasks, root_dir, remove_none,
+                       logger, plots_to_make=DEFAULT_PLOTS_TO_MAKE):
     """
     Creates and and saves comparative figure containing a plot of total reward for each different experiment
     :param storage_dir: pathlib.Path object of the model directory containing the experiments to compare
@@ -211,36 +222,51 @@ def create_plot_arrays(from_file, storage_name, over_tasks, root_dir, logger, pl
                                             transform=current_ax.transAxes, fontsize=24, fontweight='bold', color='red')
                             continue
 
-                        # Plots data for one experiment
-
                         try:
+
+                            # Loading the recorder
+
                             loaded_recorder = Recorder.init_from_pickle_file(
                                 filename=str(seed_dir / 'recorders' / 'train_recorder.pkl'))
 
-                            if y_metric in loaded_recorder.tape.keys():
-                                if x_metric in loaded_recorder.tape.keys():
-                                    plot_curves(current_ax,
-                                                ys=[loaded_recorder.tape[y_metric]],
-                                                xs=[loaded_recorder.tape[x_metric]],
-                                                xlim=x_lim,
-                                                ylim=y_lim,
-                                                xlabel=x_metric, title=y_metric)
-                                elif x_metric is None:
-                                    plot_curves(current_ax,
-                                                ys=[loaded_recorder.tape[y_metric]],
-                                                xlim=x_lim,
-                                                ylim=y_lim,
-                                                title=y_metric)
+                            # Checking if provided metrics are present in the recorder
+
+                            if y_metric not in loaded_recorder.tape.keys():
+                                logger.debug(f"'{y_metric}' was not recorded in train_recorder.")
+                                current_ax.text(0.2, 0.2, "ABSENT METRIC", transform=current_ax.transAxes,
+                                                fontsize=24, fontweight='bold', color='red')
+                                continue
+
+                            if x_metric not in loaded_recorder.tape.keys() and x_metric is not None:
+                                if x_metric is None:
+                                    pass
                                 else:
                                     logger.debug(f"'{x_metric}' was not recorded in train_recorder.")
-                                    current_ax.text(0.2, 0.2, "ABSENT METRIC",
-                                                    transform=current_ax.transAxes, fontsize=24, fontweight='bold',
-                                                    color='red')
+                                    current_ax.text(0.2, 0.2, "ABSENT METRIC", transform=current_ax.transAxes,
+                                                    fontsize=24, fontweight='bold', color='red')
+                                    continue
+
+                            # Removing None entries
+
+                            if remove_none:
+                                loaded_recorder.tape[x_metric] = remove_nones(loaded_recorder.tape[x_metric])
+                                loaded_recorder.tape[y_metric] = remove_nones(loaded_recorder.tape[y_metric])
+
+                            # Plotting
+
+                            if x_metric is not None:
+                                plot_curves(current_ax,
+                                            ys=[loaded_recorder.tape[y_metric]],
+                                            xs=[loaded_recorder.tape[x_metric]],
+                                            xlim=x_lim,
+                                            ylim=y_lim,
+                                            xlabel=x_metric, title=y_metric)
                             else:
-                                logger.debug(f"'{y_metric}' was not recorded in train_recorder.")
-                                current_ax.text(0.2, 0.2, "ABSENT METRIC",
-                                                transform=current_ax.transAxes, fontsize=24, fontweight='bold',
-                                                color='red')
+                                plot_curves(current_ax,
+                                            ys=[loaded_recorder.tape[y_metric]],
+                                            xlim=x_lim,
+                                            ylim=y_lim,
+                                            title=y_metric)
 
                         except FileNotFoundError:
                             logger.debug('Training recorder not found')
