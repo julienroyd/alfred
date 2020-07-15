@@ -37,11 +37,11 @@ assert "task_name" not in VARIATIONS.keys()
 
 check_params_defined_twice(keys=list(VARIATIONS.keys()))
 
-# Function that returns the hyperparameters for the current search
+
+# (5) Function that returns the hyperparameters for the current search
 
 def get_run_args(overwritten_cmd_line):
-    raise NotADirectoryError
-
+    raise NotImplementedError
 
 # Setting up alfred's DirectoryTree
 

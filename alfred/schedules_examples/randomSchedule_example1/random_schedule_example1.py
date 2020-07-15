@@ -48,11 +48,11 @@ def sample_experiment():
 
    check_params_defined_twice(keys=list(sampled_config.keys()))
 
-# Function that returns the hyperparameters for the current search
+
+# (6) Function that returns the hyperparameters for the current search
 
 def get_run_args(overwritten_cmd_line):
-   raise NotADirectoryError
-
+    raise NotImplementedError
 
 # Setting up alfred's DirectoryTree
 
