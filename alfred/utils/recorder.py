@@ -4,7 +4,7 @@ import time
 
 
 def remove_nones(input_list):
-    return list(filter(None, input_list))
+    return [x for x in input_list if x is not None]
 
 
 class Recorder(object):
