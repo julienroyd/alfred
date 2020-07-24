@@ -180,9 +180,6 @@ def prepare_schedule(desc, schedule_file, root_dir, add_to_folder, resample, log
                          "The name of the provided '--schedule_file' must fit one of the following forms: "
                          "'grid_schedule_NAME.py' or 'random_schedule_NAME.py'.")
 
-    if len([f for f in schedule_file_path.parent.iterdir() if '.py' in f.name]) > 1:
-        raise ValueError(f"Only one schedule file (.py) should be present in 'schedule_file.parent'")
-
     if not schedule_file_path.exists():
         raise ValueError(f"Cannot find the provided '--schedule_file': {schedule_file_path}")
 
