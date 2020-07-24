@@ -55,6 +55,7 @@ def extract_schedule_grid(schedule_module):
     # Transforms our dictionary of lists (key: list of values) into a list of lists of tuples (key, single_value)
 
     VARIATIONS_LISTS = []
+    assert all([type(value) is list for value in VARIATIONS.values()]), "All items in VARIATIONS should be lists."
     sorted_keys = sorted(VARIATIONS.keys(), key=lambda item: (len(VARIATIONS[item]), item), reverse=True)
     for key in sorted_keys:
         VARIATIONS_LISTS.append([(key, VARIATIONS[key][j]) for j in range(len(VARIATIONS[key]))])
