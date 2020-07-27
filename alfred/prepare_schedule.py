@@ -8,6 +8,7 @@
 
 import logging
 import sys
+import re
 import itertools
 import argparse
 import matplotlib
@@ -186,7 +187,7 @@ def prepare_schedule(desc, schedule_file, root_dir, add_to_folder, resample, log
 
     # Gets experiments parameters
 
-    schedule_module = ".".join(schedule_file.split('/')).strip('.py')
+    schedule_module = re.sub('\.py$', '', ".".join(schedule_file.split('/')))
 
     if search_type == 'grid':
 
