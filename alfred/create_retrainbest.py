@@ -26,14 +26,22 @@ def get_args():
                         help="If true, subprocesses will create retrainBests for all storage_dir "
                              "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
 
+    parser.add_argument('--best_experiments_mapping', type=str, default=None,
+                        help="Path to json file containing a dictionary mapping storage_name to best experiment_num. "
+                             "If --best_experiments_mapping=None, will select retrainBest automatically according to "
+                             "summary/bestConfig. ")
+
     parser.add_argument('--n_retrain_seeds', type=int, default=10)
+    parser.add_argument('--train_time_factor', type=float, default=2.,
+                        help="Factor by which training time should be increased / decreased")
 
     parser.add_argument('--root_dir', type=str, default=None)
 
     return parser.parse_args()
 
 
-def create_retrain_best(from_file, storage_name, over_tasks, n_retrain_seeds, root_dir):
+def create_retrain_best(from_file, storage_name, over_tasks, best_experiments_mapping, n_retrain_seeds,
+                        train_time_factor, root_dir):
     logger = create_logger(name="CREATE_RETRAIN", loglevel=logging.INFO)
     logger.info("\nCREATING retrainBest directories")
 
@@ -77,20 +85,36 @@ def create_retrain_best(from_file, storage_name, over_tasks, n_retrain_seeds, ro
 
             else:
 
-                # The retrainBest directory will contain one experiment with bestConfig from the search
+                # The retrainBest directory will contain one experiment with bestConfig from the search...
 
-                best_config = [path for path in (storage_dir / "summary").iterdir()
-                               if path.name.startswith("bestConfig")]
+                if best_experiments_mapping is None:
 
-                assert len(best_config) == 1 and type(best_config) is list
-                config_dict = load_dict_from_json(filename=str(best_config[0]))
+                    # ... bestConfig is found in the summary/ folder from the search
+
+                    best_config = [path for path in (storage_dir / "summary").iterdir()
+                                   if path.name.startswith("bestConfig")][0]
+
+                    assert len(best_config) == 1 and type(best_config) is list
+
+                else:
+
+                    # ... bestConfig is loaded based on specified --best_experiment_mapping
+
+                    best_experiments_mapping_dict = load_dict_from_json(best_experiments_mapping)
+                    assert storage_dir.name in best_experiments_mapping_dict.keys()
+
+                    best_experiment_num = best_experiments_mapping_dict[storage_dir.name]
+                    seed_dir = DirectoryTree.get_all_seeds(experiment_dir=storage_dir / f"experiment{best_experiment_num}")[0]
+                    best_config = seed_dir / "config.json"
+
+                config_dict = load_dict_from_json(filename=str(best_config))
 
                 # Retrain experiments run for twice as long
 
                 if config_dict['max_episodes'] is not None:
-                    config_dict['max_episodes'] *= 2
+                    config_dict['max_episodes'] = int(config_dict['max_episodes'] * train_time_factor)
                 elif config_dict['max_steps'] is not None:
-                    config_dict['max_steps'] *= 2
+                    config_dict['max_steps'] = int(config_dict['max_steps'] * train_time_factor)
                 else:
                     raise ValueError("At least one of max_episodes or max_steps should be defined")
 
