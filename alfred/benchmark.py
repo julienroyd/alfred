@@ -456,7 +456,7 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
     # Creates figure
 
     gs = gridspec.GridSpec(*axes_shape)
-    fig = plt.figure(figsize=(12 * axes_shape[1], 5 * axes_shape[0]))
+    fig = plt.figure(figsize=(8 * axes_shape[1], 4 * axes_shape[0]))
 
     # Compute means and stds for all inner_key curve from raw data
 
@@ -574,14 +574,18 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                     colors=colors[outer_key],
                     markers=markers[outer_key],
                     xlabel=x_axis_titles[outer_key],
-                    ylabel=y_axis_titles[outer_key],
+                    ylabel=y_axis_titles[outer_key] if i == 0 else "",
                     title=titles[outer_key].upper(),
                     add_legend=True if i == (len(list(y_data.keys())) - 1) else False,
                     legend_outside=True,
-                    legend_loc="lower left",
-                    legend_pos=(1.05, 0.),
-                    legend_n_columns=1,  # len(list(y_data_means[outer_key].values())) + len(hlines)
-                    hlines=hlines)
+                    legend_loc="upper right",
+                    legend_pos=(0.95, -0.2),
+                    legend_n_columns=len(list(y_data_means[outer_key].values())) + len(hlines),
+                    hlines=hlines,
+                    tick_font_size=22,
+                    axis_font_size=26,
+                    legend_font_size=26,
+                    title_font_size=28)
 
     plt.tight_layout()
 
