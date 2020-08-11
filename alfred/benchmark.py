@@ -355,8 +355,6 @@ def _make_benchmark_performance_figure(storage_dirs, save_dir, y_error_bars, log
 
 def _gather_experiments_training_curves(storage_dir, graph_key, curve_key, logger, x_metric, y_metric,
                                         x_data=None, y_data=None):
-    assert graph_key in ['task_name', 'storage_name', 'experiment_num', 'alg_name']
-    assert curve_key in ['task_name', 'storage_name', 'experiment_num', 'alg_name']
 
     # Initialize containers
 
@@ -390,14 +388,12 @@ def _gather_experiments_training_curves(storage_dir, graph_key, curve_key, logge
 
             config_dict = load_dict_from_json(str(seed_dir / "config.json"))
 
-            # Selects how data will be identified
+            # Keys can be any information stored in config.json
+            # We also handle a few special cases (e.g. "experiment_num")
 
-            keys = {
-                "task_name": config_dict["task_name"],
-                "storage_name": seed_dir.parents[1],
-                "alg_name": config_dict["alg_name"],
-                "experiment_num": seed_dir.parent.stem.strip('experiment')
-            }
+            keys = config_dict.copy()
+            keys['experiment_num'] = seed_dir.parent.stem.strip('experiment')
+            keys['storage_name'] = seed_dir.parents[1]
 
             outer_key = keys[graph_key]  # number of graphs to be made
             inner_key = keys[curve_key]  # number of curves per graph
@@ -545,17 +541,17 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
             y_axis_titles[outer_key] = y_metric
 
         if type(visuals) is dict and 'labels_dict' in visuals.keys():
-            labels[outer_key] = [visuals['labels_dict'][alg] for alg in algs]
+            labels[outer_key] = [visuals['labels_dict'][inner_key] for inner_key in y_data_means[outer_key].keys()]
         else:
             labels[outer_key] = long_labels[outer_key]
 
         if type(visuals) is dict and 'colors_dict' in visuals.keys():
-            colors[outer_key] = [visuals['colors_dict'][alg] for alg in algs]
+            colors[outer_key] = [visuals['colors_dict'][inner_key] for inner_key in y_data_means[outer_key].keys()]
         else:
             colors[outer_key] = [None for _ in long_labels[outer_key]]
 
         if type(visuals) is dict and 'markers_dict' in visuals.keys():
-            markers[outer_key] = [visuals['markers_dict'][alg] for alg in algs]
+            markers[outer_key] = [visuals['markers_dict'][inner_key] for inner_key in y_data_means[outer_key].keys()]
         else:
             markers[outer_key] = [None for _ in long_labels[outer_key]]
 
