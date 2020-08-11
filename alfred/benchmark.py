@@ -1,4 +1,4 @@
-from alfred.utils.config import parse_bool, load_dict_from_json, save_dict_to_json
+from alfred.utils.config import parse_bool, load_dict_from_json, save_dict_to_json, parse_log_level
 from alfred.utils.misc import create_logger, select_storage_dirs
 from alfred.utils.directory_tree import DirectoryTree, get_root, sanity_check_exists
 from alfred.utils.recorder import Recorder
@@ -27,6 +27,7 @@ sns.set_style('whitegrid')
 def get_benchmark_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--benchmark_type', type=str, choices=['compare_models', 'compare_searches'], required=True)
+    parser.add_argument('--log_level', type=parse_log_level, default=logging.INFO)
 
     parser.add_argument('--from_file', type=str, default=None)
     parser.add_argument('--storage_names', type=str, nargs='+', default=None)
@@ -783,7 +784,7 @@ def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_di
             x_data, y_data = _gather_experiments_training_curves(
                 storage_dir=get_root(root_dir) / storage_name,
                 graph_key="task_name",
-                curve_key="storage_name",
+                curve_key="storage_name" if logger.level == 10 else "alg_name",
                 logger=logger,
                 x_metric=x_metric,
                 y_metric=y_metric,
@@ -815,7 +816,7 @@ def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_di
                                  performance_aggregation=performance_aggregation,
                                  n_eval_runs=n_eval_runs,
                                  group_key="task_name",
-                                 bar_key="storage_name",
+                                 bar_key="storage_name" if logger.level == 10 else "alg_name",
                                  re_run_if_exists=re_run_if_exists,
                                  save_dir="benchmark",
                                  logger=logger,
@@ -877,7 +878,7 @@ def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_d
                              performance_metric=performance_metric,
                              performance_aggregation=performance_aggregation,
                              group_key="experiment_num",
-                             bar_key="storage_name",
+                             bar_key="storage_name" if logger.level == 10 else "alg_name",
                              re_run_if_exists=re_run_if_exists,
                              save_dir="summary",
                              logger=logger,
@@ -942,7 +943,7 @@ def compare_searches(storage_names, x_metric, y_metric, y_error_bars, performanc
 
 if __name__ == '__main__':
     benchmark_args = get_benchmark_args()
-    logger = create_logger(name="BENCHMARK - MAIN", loglevel=logging.DEBUG)
+    logger = create_logger(name="BENCHMARK - MAIN", loglevel=benchmark_args.log_level)
 
     # Gets storage_dirs list
 
