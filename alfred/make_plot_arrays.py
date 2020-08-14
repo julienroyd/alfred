@@ -254,19 +254,24 @@ def create_plot_arrays(from_file, storage_name, over_tasks, root_dir, remove_non
 
                             # Plotting
 
-                            if x_metric is not None:
-                                plot_curves(current_ax,
-                                            ys=[loaded_recorder.tape[y_metric]],
-                                            xs=[loaded_recorder.tape[x_metric]],
-                                            xlim=x_lim,
-                                            ylim=y_lim,
-                                            xlabel=x_metric, title=y_metric)
-                            else:
-                                plot_curves(current_ax,
-                                            ys=[loaded_recorder.tape[y_metric]],
-                                            xlim=x_lim,
-                                            ylim=y_lim,
-                                            title=y_metric)
+                            try:
+
+                                if x_metric is not None:
+                                    plot_curves(current_ax,
+                                                ys=[loaded_recorder.tape[y_metric]],
+                                                xs=[loaded_recorder.tape[x_metric]],
+                                                xlim=x_lim,
+                                                ylim=y_lim,
+                                                xlabel=x_metric, title=y_metric)
+                                else:
+                                    plot_curves(current_ax,
+                                                ys=[loaded_recorder.tape[y_metric]],
+                                                xlim=x_lim,
+                                                ylim=y_lim,
+                                                title=y_metric)
+
+                            except Exception as e:
+                                logger.debug(f'Polotting error: {e}')
 
                         except FileNotFoundError:
                             logger.debug('Training recorder not found')
