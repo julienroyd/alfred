@@ -560,8 +560,10 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
 
         if additional_curves_file is not None:
             hlines = additional_curves['hlines'][outer_key]
+            n_lines = len(hlines)
         else:
             hlines = None
+            n_lines = 0
 
         # Plots the curves
 
@@ -580,7 +582,7 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                     legend_outside=True,
                     legend_loc="upper right",
                     legend_pos=(0.95, -0.2),
-                    legend_n_columns=len(list(y_data_means[outer_key].values())) + len(hlines),
+                    legend_n_columns=len(list(y_data_means[outer_key].values())) + n_lines,
                     hlines=hlines,
                     tick_font_size=22,
                     axis_font_size=26,
