@@ -27,9 +27,6 @@ def get_args():
     parser.add_argument('--from_file', type=str, default=None,
                         help="Path containing all the storage_names for which to create retrainBests")
     parser.add_argument('--storage_name', type=str, default=None)
-    parser.add_argument('--over_tasks', type=parse_bool, default=False,
-                        help="If true, subprocesses will create retrainBests for all storage_dir "
-                             "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
     parser.add_argument('--new_desc', type=str, default=None)
     parser.add_argument('--append_new_desc', type=parse_bool, default=True)
     parser.add_argument("--additional_param", action='append',
@@ -40,14 +37,14 @@ def get_args():
     return parser.parse_args()
 
 
-def copy_configs(from_file, storage_name, over_tasks, new_desc, append_new_desc, additional_params, root_dir):
+def copy_configs(from_file, storage_name, new_desc, append_new_desc, additional_params, root_dir):
 
     logger = create_logger(name="COPY CONFIG", loglevel=logging.INFO)
     logger.info("\nCOPYING Config")
 
     # Select storage_dirs to run over
 
-    storage_dirs = select_storage_dirs(from_file, storage_name, over_tasks, root_dir)
+    storage_dirs = select_storage_dirs(from_file, storage_name, root_dir)
 
     # Sanity-check that storages exist
 
@@ -131,7 +128,6 @@ if __name__ == "__main__":
     print(args.__dict__)
     copy_configs(from_file=args.from_file,
                  storage_name=args.storage_name,
-                 over_tasks=args.over_tasks,
                  new_desc=args.new_desc,
                  append_new_desc=args.append_new_desc,
                  additional_params=args.additional_params,

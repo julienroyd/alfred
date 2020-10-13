@@ -22,9 +22,6 @@ def get_args():
                         help="Path containing all the storage_names for which to create retrainBests")
 
     parser.add_argument('--storage_name', type=str, default=None)
-    parser.add_argument('--over_tasks', type=parse_bool, default=False,
-                        help="If true, subprocesses will create retrainBests for all storage_dir "
-                             "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
 
     parser.add_argument('--best_experiments_mapping', type=str, default=None,
                         help="Path to json file containing a dictionary mapping storage_name to best experiment_num. "
@@ -40,14 +37,13 @@ def get_args():
     return parser.parse_args()
 
 
-def create_retrain_best(from_file, storage_name, over_tasks, best_experiments_mapping, n_retrain_seeds,
-                        train_time_factor, root_dir):
+def create_retrain_best(from_file, storage_name, best_experiments_mapping, n_retrain_seeds, train_time_factor, root_dir):
     logger = create_logger(name="CREATE_RETRAIN", loglevel=logging.INFO)
     logger.info("\nCREATING retrainBest directories")
 
     # Select storage_dirs to run over
 
-    storage_dirs = select_storage_dirs(from_file, storage_name, over_tasks, root_dir)
+    storage_dirs = select_storage_dirs(from_file, storage_name, root_dir)
 
     # Sanity-check that storages exist
 

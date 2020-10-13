@@ -6,7 +6,7 @@ from tqdm import tqdm
 from pathlib import Path
 
 from alfred.utils.config import config_to_str
-from alfred.utils.directory_tree import DirectoryTree, get_root, get_storage_dirs_across_tasks
+from alfred.utils.directory_tree import DirectoryTree, get_root
 
 COMMENTING_CHAR_LIST = ['#']
 
@@ -99,16 +99,15 @@ def is_commented(str_line, commenting_char_list):
     return str_line[0] in commenting_char_list
 
 
-def select_storage_dirs(from_file, storage_name, over_tasks, root_dir):
+def select_storage_dirs(from_file, storage_name, root_dir):
     if from_file is not None:
         assert storage_name is None, "If launching --from_file, no storage_name should be provided"
-        assert over_tasks is False, "--over_tasks is not allowed when running --from_file"
         assert Path(from_file).suffix == '.txt', f"The provided --from_file should be a text file listing " \
                                                  f"storage_name's of directories to act on. " \
                                                  f"You provided '--from_file={from_file}'"
 
-    if storage_name is not None or over_tasks is not False:
-        assert from_file is None, "Cannot launch --from_file if --storage_name or --over_tasks is defined"
+    if storage_name is not None:
+        assert from_file is None, "Cannot launch --from_file if --storage_name"
 
     if from_file is not None:
         with open(from_file, "r") as f:
@@ -122,12 +121,7 @@ def select_storage_dirs(from_file, storage_name, over_tasks, root_dir):
 
     elif storage_name is not None:
 
-        storage_dir = get_root(root_dir) / storage_name
-
-        if over_tasks:
-            storage_dirs = get_storage_dirs_across_tasks(storage_dir, root_dir=root_dir)
-        else:
-            storage_dirs = [storage_dir]
+        storage_dir = [get_root(root_dir) / storage_name]
 
     else:
         raise NotImplementedError(

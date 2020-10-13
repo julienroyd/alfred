@@ -28,10 +28,6 @@ def get_make_plots_args():
                              "\"episode, episode_len, None, None, 0, 350\""
                              "(note: be mindful to put the whole plot definition inside quotes)")
 
-    parser.add_argument('--over_tasks', type=parse_bool, default=False,
-                        help="If true, make_plot_arrays will look for all storage_dir "
-                             "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
-
     parser.add_argument('--remove_none', type=parse_bool, default=False,
                         help="The Recorder records None for all keys that are not specified in new_recordings "
                              "(see alfred.utils.recorder.Recorder.write_to_tape()). That allows to associate "
@@ -51,7 +47,7 @@ def plot_definition_parser(to_parse):
     return (x_metric, y_metric, (x_min, x_max), (y_min, y_max))
 
 
-def create_plot_arrays(from_file, storage_name, over_tasks, root_dir, remove_none,
+def create_plot_arrays(from_file, storage_name, root_dir, remove_none,
                        logger, plots_to_make=DEFAULT_PLOTS_TO_MAKE):
     """
     Creates and and saves comparative figure containing a plot of total reward for each different experiment
@@ -61,7 +57,7 @@ def create_plot_arrays(from_file, storage_name, over_tasks, root_dir, remove_non
     """
     # Select storage_dirs to run over
 
-    storage_dirs = select_storage_dirs(from_file, storage_name, over_tasks, root_dir)
+    storage_dirs = select_storage_dirs(from_file, storage_name, root_dir)
 
     for storage_dir in storage_dirs:
 

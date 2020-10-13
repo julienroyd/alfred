@@ -955,7 +955,6 @@ if __name__ == '__main__':
 
     storage_dirs = select_storage_dirs(from_file=benchmark_args.from_file,
                                        storage_name=benchmark_args.storage_names,
-                                       over_tasks=False,
                                        root_dir=benchmark_args.root_dir)
 
     # Sanity-check that storages exist

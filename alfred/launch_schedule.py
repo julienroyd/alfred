@@ -41,10 +41,6 @@ def get_launch_schedule_args():
 
     parser.add_argument('--storage_name', type=str, default=None,
                         help="Single storage_name to launch (NULL if --from_file is provided)")
-    parser.add_argument('--over_tasks', type=parse_bool, default=False,
-                        help="If true, subprocesses will look for unhatched seeds in all storage_dir "
-                             "that have the same hashes, 'alg_name', 'desc' but different 'task_name' "
-                             "as the provided 'storage_name' (NULL if --from_file is provided)")
 
     parser.add_argument('--n_processes', type=int, default=1)
     parser.add_argument('--n_experiments_per_proc', type=int, default=np.inf)
@@ -163,8 +159,8 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
                     try:
                         create_plot_arrays(from_file=None,
                                            storage_name=storage_dir.name,
-                                           over_tasks=False,
                                            root_dir=root_dir,
+                                           remove_none=False,
                                            logger=logger)
 
                         open(str(storage_dir / 'PLOT_ARRAYS_COMPLETED'), 'w+').close()
@@ -220,11 +216,11 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
     return call_i
 
 
-def launch_schedule(from_file, storage_name, over_tasks, n_processes, n_experiments_per_proc, use_pbar, check_hash,
+def launch_schedule(from_file, storage_name, n_processes, n_experiments_per_proc, use_pbar, check_hash,
                     run_clean_interrupted, root_dir, log_level):
     # Select storage_dirs to run over
 
-    storage_dirs = select_storage_dirs(from_file, storage_name, over_tasks, root_dir)
+    storage_dirs = select_storage_dirs(from_file, storage_name, root_dir)
 
     # Creates logger
 
@@ -264,7 +260,6 @@ def launch_schedule(from_file, storage_name, over_tasks, n_processes, n_experime
                         f"\nn_experiments_per_proc={n_experiments_per_proc}"
                         f"\nuse_pbar={use_pbar}"
                         f"\ncheck_hash={check_hash}"
-                        f"\nover_tasks={over_tasks}"
                         f"\nroot={get_root(root_dir)}"
                         f"\n")
 
@@ -275,7 +270,6 @@ def launch_schedule(from_file, storage_name, over_tasks, n_processes, n_experime
             clean_interrupted(from_file=None,
                               storage_name=storage_dir.name,
                               clean_crashes=False,
-                              over_tasks=False,
                               ask_for_validation=False,
                               logger=master_logger,
                               root_dir=root_dir)

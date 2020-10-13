@@ -8,20 +8,17 @@ def get_args():
     parser.add_argument('--from_file', type=str, default=None,
                         help="Path containing all the storage_names for which to create retrainBests")
     parser.add_argument('--storage_name', type=str, default=None)
-    parser.add_argument('--over_tasks', type=parse_bool, default=False,
-                        help="If true, subprocesses will create retrainBests for all storage_dir "
-                             "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
     parser.add_argument("--root_dir", default=None, type=str)
     return parser.parse_args()
 
 
-def _update_config_unique(from_file, storage_name, over_tasks, root_dir):
+def _update_config_unique(from_file, storage_name, root_dir):
     logger = create_logger(name="VERIFY CONFIG", loglevel=logging.INFO)
     logger.info("\nVERIFYING Config Unique")
 
     # Select storage_dirs to run over
 
-    storage_dirs = select_storage_dirs(from_file, storage_name, over_tasks, root_dir)
+    storage_dirs = select_storage_dirs(from_file, storage_name, root_dir)
 
     # Sanity-check that storages exist
 
@@ -61,5 +58,4 @@ if __name__ == "__main__":
     print(args.__dict__)
     _update_config_unique(from_file=args.from_file,
                           storage_name=args.storage_name,
-                          over_tasks=args.over_tasks,
                           root_dir=args.root_dir)
