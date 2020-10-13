@@ -31,6 +31,7 @@ def get_args():
                         help="If true, subprocesses will create retrainBests for all storage_dir "
                              "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
     parser.add_argument('--new_desc', type=str, default=None)
+    parser.add_argument('--append_new_desc', type=parse_bool, default=True)
     parser.add_argument("--additional_param", action='append',
                         type=my_type_func, dest='additional_params',
                         help='To add two params p1 and p2 with values v1 and v2 of type t1 and t2 do : --additional_param p1=v1,t1 '
@@ -39,7 +40,7 @@ def get_args():
     return parser.parse_args()
 
 
-def copy_configs(from_file, storage_name, over_tasks, new_desc, additional_params, root_dir):
+def copy_configs(from_file, storage_name, over_tasks, new_desc, append_new_desc, additional_params, root_dir):
 
     logger = create_logger(name="COPY CONFIG", loglevel=logging.INFO)
     logger.info("\nCOPYING Config")
@@ -81,7 +82,12 @@ def copy_configs(from_file, storage_name, over_tasks, new_desc, additional_param
         storage_name_id, git_hashes, _, _, _ = \
             DirectoryTree.extract_info_from_storage_name(str(tmp_dir_tree.storage_dir.name))
 
-        desc = old_desc if new_desc is None else new_desc
+        if new_desc is None:
+            desc = old_desc
+        elif new_desc is not None and append_new_desc:
+            desc = f"{old_desc}_{new_desc}"
+        else:
+            desc = new_desc
 
         # creates the new folders with loaded config from which we overwrite the task_name
 
@@ -127,5 +133,6 @@ if __name__ == "__main__":
                  storage_name=args.storage_name,
                  over_tasks=args.over_tasks,
                  new_desc=args.new_desc,
+                 append_new_desc=args.append_new_desc,
                  additional_params=args.additional_params,
                  root_dir=args.root_dir)
