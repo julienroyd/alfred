@@ -135,8 +135,8 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
 
                 except Exception as e:
                     with open(str(seed_dir / 'CRASH.txt'), 'w+') as f:
-                        f.write(f'Crashed at : {datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")}')
-                        f.write(str(e))
+                        f.write(f'Crashed at: {datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")}.')
+                        f.write(f'Error: {e}\n')
                         f.write(traceback.format_exc())
 
             # If all experiments have been completed (or at least crashed but have been attempted)...
