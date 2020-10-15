@@ -121,7 +121,7 @@ def select_storage_dirs(from_file, storage_name, root_dir):
 
     elif storage_name is not None:
 
-        storage_dir = [get_root(root_dir) / storage_name]
+        storage_dirs = [get_root(root_dir) / storage_name]
 
     else:
         raise NotImplementedError(
