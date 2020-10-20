@@ -8,18 +8,18 @@
 
 import logging
 import sys
+import re
 import itertools
 import argparse
 import matplotlib
-from pathlib import Path, PosixPath
+from pathlib import Path
 from importlib import import_module
-import os
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from alfred.utils.directory_tree import DirectoryTree, get_root
-from alfred.utils.config import save_dict_to_json, load_dict_from_json, save_config_to_json, config_to_str, parse_bool
+from alfred.utils.config import save_dict_to_json, load_dict_from_json, save_config_to_json, config_to_str, parse_bool, validate_config_unique
 from alfred.utils.plots import plot_sampled_hyperparams
 from alfred.utils.misc import create_logger
 
@@ -56,6 +56,7 @@ def extract_schedule_grid(schedule_module):
     # Transforms our dictionary of lists (key: list of values) into a list of lists of tuples (key, single_value)
 
     VARIATIONS_LISTS = []
+    assert all([type(value) is list for value in VARIATIONS.values()]), "All items in VARIATIONS should be lists."
     sorted_keys = sorted(VARIATIONS.keys(), key=lambda item: (len(VARIATIONS[item]), item), reverse=True)
     for key in sorted_keys:
         VARIATIONS_LISTS.append([(key, VARIATIONS[key][j]) for j in range(len(VARIATIONS[key]))])
@@ -152,6 +153,7 @@ def create_experiment_dir(storage_name_id, config, config_unique_dict, SEEDS, ro
 
         # Saves a dictionary of what makes each seed_dir unique (just for display on graphs)
 
+        validate_config_unique(config, config_unique_dict)
         save_dict_to_json(config_unique_dict, filename=str(dir_tree.seed_dir / 'config_unique.json'))
 
         # Creates empty file UNHATCHED meaning that the experiment is ready to be run
@@ -166,6 +168,10 @@ def prepare_schedule(desc, schedule_file, root_dir, add_to_folder, resample, log
 
     schedule_file_path = Path(schedule_file)
 
+    assert schedule_file_path.suffix == '.py', f"The provided --schedule_file should be a python file " \
+                                               f"(see: alfred/schedule_examples). You provided " \
+                                               f"'--schedule_file={schedule_file}'"
+
     if "grid_schedule" in schedule_file_path.name:
         search_type = 'grid'
     elif "random_schedule" in schedule_file_path.name:
@@ -176,15 +182,12 @@ def prepare_schedule(desc, schedule_file, root_dir, add_to_folder, resample, log
                          "The name of the provided '--schedule_file' must fit one of the following forms: "
                          "'grid_schedule_NAME.py' or 'random_schedule_NAME.py'.")
 
-    if len([f for f in schedule_file_path.parent.iterdir() if '.py' in f.name]) > 1:
-        raise ValueError(f"Only one schedule file (.py) should be present in 'schedule_file.parent'")
-
     if not schedule_file_path.exists():
         raise ValueError(f"Cannot find the provided '--schedule_file': {schedule_file_path}")
 
     # Gets experiments parameters
 
-    schedule_module = ".".join(schedule_file.split('/')).strip('.py')
+    schedule_module = re.sub('\.py$', '', ".".join(schedule_file.split('/')))
 
     if search_type == 'grid':
 
@@ -357,12 +360,13 @@ def prepare_schedule(desc, schedule_file, root_dir, add_to_folder, resample, log
             open(str(dir_tree.storage_dir / 'GRID_SEARCH'), 'w+').close()
 
         elif search_type == 'random':
-
-            fig, ax = plt.subplots(len(param_samples[i]), 1, figsize=(6, 2 * len(param_samples[i])))
+            len_samples = len(param_samples[alg_task_i])
+            fig_width = 2 * len_samples if len_samples > 0 else 2
+            fig, ax = plt.subplots(len(param_samples[alg_task_i]), 1, figsize=(6, fig_width))
             if not hasattr(ax, '__iter__'):
                 ax = [ax]
 
-            plot_sampled_hyperparams(ax, param_samples[i],
+            plot_sampled_hyperparams(ax, param_samples[alg_task_i],
                                      log_params=['lr', 'tau', 'initial_alpha', 'grad_clip_value', 'lamda1', 'lamda2'])
 
             j = 1

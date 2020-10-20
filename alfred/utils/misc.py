@@ -3,9 +3,12 @@ import sys
 from math import floor, log10
 import re
 from tqdm import tqdm
+from pathlib import Path
 
 from alfred.utils.config import config_to_str
-from alfred.utils.directory_tree import DirectoryTree, get_root, get_storage_dirs_across_tasks
+from alfred.utils.directory_tree import DirectoryTree, get_root
+
+COMMENTING_CHAR_LIST = ['#']
 
 
 def create_logger(name, loglevel, logfile=None, streamHandle=True):
@@ -37,12 +40,14 @@ def create_new_filehandler(logger_name, logfile):
     return file_handler
 
 
-def round_to_two(x):
-    return round(x, -int(floor(log10(abs(x))) - 1))
-
-
 def keep_two_signif_digits(x):
-    return round(x, -int(floor(log10(abs(x))) - 1))
+    try:
+        if x == 0.:
+            return x
+        else:
+            return round(x, -int(floor(log10(abs(x))) - 1))
+    except:
+        return x
 
 
 def sorted_nicely(l):
@@ -90,31 +95,60 @@ def check_params_defined_twice(keys):
             raise ValueError(f'Parameter "{key}" appears {counted_keys[key]} times in the schedule.')
 
 
-def select_storage_dirs(from_file, storage_name, over_tasks, root_dir):
+def is_commented(str_line, commenting_char_list):
+    return str_line[0] in commenting_char_list
+
+
+def select_storage_dirs(from_file, storage_name, root_dir):
     if from_file is not None:
         assert storage_name is None, "If launching --from_file, no storage_name should be provided"
-        assert over_tasks is False, "--over_tasks is not allowed when running --from_file"
+        assert Path(from_file).suffix == '.txt', f"The provided --from_file should be a text file listing " \
+                                                 f"storage_name's of directories to act on. " \
+                                                 f"You provided '--from_file={from_file}'"
 
-    if storage_name is not None or over_tasks is not False:
-        assert from_file is None, "Cannot launch --from_file if --storage_name or --over_tasks is defined"
+    if storage_name is not None:
+        assert from_file is None, "Cannot launch --from_file if --storage_name"
 
     if from_file is not None:
         with open(from_file, "r") as f:
             storage_names = f.readlines()
         storage_names = [sto_name.strip('\n') for sto_name in storage_names]
 
+        # drop the commented lignes in the .txt
+        storage_names = [sto_name for sto_name in storage_names if not is_commented(sto_name, COMMENTING_CHAR_LIST)]
+
         storage_dirs = [get_root(root_dir) / sto_name for sto_name in storage_names]
 
     elif storage_name is not None:
 
-        storage_dir = get_root(root_dir) / storage_name
-
-        if over_tasks:
-            storage_dirs = get_storage_dirs_across_tasks(storage_dir, root_dir=root_dir)
-        else:
-            storage_dirs = [storage_dir]
+        storage_dirs = [get_root(root_dir) / storage_name]
 
     else:
-        raise NotImplementedError("storage_dirs to operate over must be specified either by --from_file or --storage_name")
+        raise NotImplementedError(
+            "storage_dirs to operate over must be specified either by --from_file or --storage_name")
 
     return storage_dirs
+
+
+def formatted_time_diff(total_time_seconds):
+    n_hours = int(total_time_seconds // 3600)
+    n_minutes = int((total_time_seconds - n_hours * 3600) // 60)
+    n_seconds = int(total_time_seconds - n_hours * 3600 - n_minutes * 60)
+    return f"{n_hours}h{str(n_minutes).zfill(2)}m{str(n_seconds).zfill(2)}s"
+
+
+def uniquify(newfilepath):
+    """
+    Appends a number ID to newfilepath if files with same name (but different ID) already exist
+    :param newfilepath (pathlib.Path): Full path to new file
+    """
+    max_num = -1
+    for existing_file in newfilepath.parent.iterdir():
+        if newfilepath.stem in existing_file.stem and newfilepath.suffix == existing_file.suffix:
+            str_end = str(existing_file.stem).split('_')[-1]
+            if str_end.isdigit():
+                num = int(str_end)
+                if num > max_num:
+                    max_num = num
+
+    return newfilepath.parent / (newfilepath.stem + f"_{max_num + 1}" + newfilepath.suffix)

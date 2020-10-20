@@ -1,5 +1,4 @@
 *.pyc
 .idea/
-*__init__.py
 *__pycache__/
 *egg-info

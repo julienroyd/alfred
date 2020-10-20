@@ -7,7 +7,10 @@ setup(name='alfred',
       author='Julien Roy',
       packages=find_packages(),
       install_requires=[
-            'tqdm>=4.40.1',
-            'seaborn>=0.9.0'
+            'tqdm>=4.41.1',
+            'numpy>=1.16.3',
+            'matplotlib>=3.1.2',
+            'seaborn>=0.9.0',
+            'bootstrapped>=0.0.2'
       ]
 )

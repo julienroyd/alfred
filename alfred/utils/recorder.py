@@ -1,7 +1,10 @@
 import pickle
 import numpy as np
 import time
-import sys
+
+
+def remove_nones(input_list):
+    return [x for x in input_list if x is not None]
 
 
 class Recorder(object):
@@ -52,16 +55,24 @@ class Recorder(object):
 
 
 class TrainingIterator(object):
-    def __init__(self, max_itr, heartbeat_ite=int(sys.maxsize), heartbeat_time=float('inf')):
-        self.max_itr = max_itr
-        self.heartbeat_time = heartbeat_time
-        self.heartbeat_ite = heartbeat_ite
-        self._vals = {}
+    def __init__(self, max_itr, heartbeat_ite=np.inf, heartbeat_time=np.inf):
+        """
+        Container that allows to store temporary values in a dictionary self._data
+        Typically used as iterable in a training loop to collect data from each iteration
+        We then check the heartbeat of the TrainingIterator and when heartbeat==True, we use self.pop_all_means() to
+        average the different data for each keys in self._data() and make them one datapoint on their respective plot.
+        :param max_itr: (int) maximum number of iteration
+        :param heartbeat_ite: (int) number of iterations between heartbeats
+        :param heartbeat_time: (float) number of seconds between heartbeats (only works when used as iterable)
+        """
         self._heartbeat = False
         self._itr = 0
 
-    def random_idx(self, N, size):
-        return np.random.randint(0, N, size=size)
+        self.max_itr = max_itr
+        self.heartbeat_ite = heartbeat_ite
+        self.heartbeat_time = heartbeat_time
+
+        self._data = {}
 
     @property
     def itr(self):
@@ -77,50 +88,61 @@ class TrainingIterator(object):
 
     @property
     def elapsed(self):
-        return self.__elapsed
+        return self._elapsed
 
     def itr_message(self):
         return f'==> Itr {self.itr + 1}/{self.max_itr} (elapsed:{self.elapsed:.2f})'
 
     def record(self, key, value):
-        if key in self._vals:
-            self._vals[key].append(value)
+        if key in self._data:
+            self._data[key].append(value)
         else:
-            self._vals[key] = [value]
+            self._data[key] = [value]
 
     def update(self, dict):
         for (key, value) in dict.items():
             self.record(key, value)
 
     def pop(self, key):
-        vals = self._vals.get(key, [])
-        del self._vals[key]
+        vals = self._data.get(key, [])
+        del self._data[key]
         return vals
 
     def pop_mean(self, key):
         return np.mean(self.pop(key))
 
     def pop_all_means(self):
-        r = {}
-        for key in dict(self._vals):
-            r.update({key: self.pop_mean(key)})
-        return r
+        data_points = {}
+        for key in dict(self._data):
+            data_points.update({key: self.pop_mean(key)})
+        return data_points
 
     def __iter__(self):
+        """
+        Iterate until self.mex_itr is reached (called automatically in a loop)
+        """
         prev_time = time.time()
         self._heartbeat = False
         for i in range(self.max_itr):
             self._itr = i
             cur_time = time.time()
-            if (cur_time - prev_time) > self.heartbeat_time or (i == self.max_itr - 1) or (
-                    self.itr % self.heartbeat_ite == 0):
+
+            if (cur_time - prev_time) > self.heartbeat_time \
+                    or (self.itr % self.heartbeat_ite == 0) \
+                    or (i == self.max_itr - 1):
+
                 self._heartbeat = True
-                self.__elapsed = cur_time - prev_time
+                self._elapsed = cur_time - prev_time
                 prev_time = cur_time
+
+            # self.itr_message()
             yield self
             self._heartbeat = False
 
     def touch(self):
+        """
+        Increase iteration by one (called by hand)
+        """
         self._itr += 1
 
         if (self.itr == self.max_itr) or (self.itr % self.heartbeat_ite == 0):

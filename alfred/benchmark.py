@@ -1,6 +1,6 @@
-from alfred.utils.config import parse_bool, load_dict_from_json, save_dict_to_json
-from alfred.utils.misc import create_logger
-from alfred.utils.directory_tree import DirectoryTree, get_root
+from alfred.utils.config import parse_bool, load_dict_from_json, save_dict_to_json, parse_log_level
+from alfred.utils.misc import create_logger, select_storage_dirs
+from alfred.utils.directory_tree import DirectoryTree, get_root, sanity_check_exists
 from alfred.utils.recorder import Recorder
 from alfred.utils.plots import create_fig, bar_chart, plot_curves, plot_vertical_densities
 from alfred.utils.stats import get_95_confidence_interval_of_sequence, get_95_confidence_interval
@@ -17,6 +17,8 @@ from collections import OrderedDict
 import seaborn as sns
 import pathlib
 from pathlib import Path
+import shutil
+import math
 
 sns.set()
 sns.set_style('whitegrid')
@@ -25,23 +27,27 @@ sns.set_style('whitegrid')
 def get_benchmark_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--benchmark_type', type=str, choices=['compare_models', 'compare_searches'], required=True)
+    parser.add_argument('--log_level', type=parse_log_level, default=logging.INFO)
 
     parser.add_argument('--from_file', type=str, default=None)
     parser.add_argument('--storage_names', type=str, nargs='+', default=None)
 
     parser.add_argument('--x_metric', default="episode", type=str)
     parser.add_argument('--y_metric', default="eval_return", type=str)
-    parser.add_argument('--y_error_bars', default="bootstrapped_CI", choices=["bootstrapped_CI", "stderr", "10th_quantile"])
+    parser.add_argument('--y_error_bars', default="bootstrapped_CI",
+                        choices=["bootstrapped_CI", "stderr", "10th_quantile"])
 
     parser.add_argument('--re_run_if_exists', type=parse_bool, default=False,
                         help="Whether to re-compute seed_scores if 'seed_scores.pkl' already exists")
     parser.add_argument('--n_eval_runs', type=int, default=100,
                         help="Only used if performance_metric=='evaluation_runs'")
-    parser.add_argument('--performance_metric', type=str, default='avg_eval_return',
+    parser.add_argument('--performance_metric', type=str, default='eval_return',
                         help="Can fall into either of two categories: "
                              "(1) 'evaluation_runs': evaluate() will be called on model in seed_dir for 'n_eval_runs'"
                              "(2) OTHER METRIC: this metric must have been recorded in training and be a key of train_recorder")
-    parser.add_argument('--performance_aggregation', type=str, choices=['min', 'max', 'avg', 'last'], default='last',
+    parser.add_argument('--performance_aggregation', type=str, choices=['min', 'max', 'avg', 'last',
+                                                                        'mean_on_last_20_percents'],
+                        default='mean_on_last_20_percents',
                         help="How gathered 'performance_metric' should be aggregated to quantify performance of seed_dir")
 
     parser.add_argument('--root_dir', default="./storage", type=str)
@@ -52,8 +58,7 @@ def get_benchmark_args():
 # utility functions for curves (should not be called alone) -------------------------------------------------------
 
 def _compute_seed_scores(storage_dir, performance_metric, performance_aggregation, group_key, bar_key,
-                         re_run_if_exists, save_dir, logger, root_dir, n_eval_runs=None):
-
+                         re_run_if_exists, save_dir, logger, root_dir, n_eval_runs):
     if (storage_dir / save_dir / f"{save_dir}_seed_scores.pkl").exists() and not re_run_if_exists:
         logger.info(f" SKIPPING {storage_dir} - {save_dir}_seed_scores.pkl already exists")
         return
@@ -128,6 +133,7 @@ def _compute_seed_scores(storage_dir, performance_metric, performance_aggregatio
                 eval_config.seed_num = int(seed_dir.name.strip("seed"))
                 eval_config.render = False
                 eval_config.n_episodes = n_eval_runs
+                eval_config.root_dir = root_dir
 
                 # Evaluates agent and stores the return
 
@@ -156,6 +162,9 @@ def _compute_seed_scores(storage_dir, performance_metric, performance_aggregatio
             elif performance_aggregation == 'last':
                 score = performance_data[-1]
 
+            elif performance_aggregation == 'mean_on_last_20_percents':
+                eighty_percent_index = int(0.8*len(performance_data))
+                score = np.mean(performance_data[eighty_percent_index:])
             else:
                 raise NotImplementedError
 
@@ -178,8 +187,7 @@ def _compute_seed_scores(storage_dir, performance_metric, performance_aggregatio
     save_dict_to_json(scores_info, filename=str(storage_dir / save_dir / f"{save_dir}_seed_scores_info.json"))
 
 
-def _make_benchmark_performance_figure(storage_dirs, save_dir, y_error_bars, logger, normalize_with_first_model=True,
-                                       sort_bars=False):
+def _gather_scores(storage_dirs, save_dir, y_error_bars, logger, normalize_with_first_model=True, sort_bars=False):
     # Initialize containers
 
     scores_means = OrderedDict()
@@ -275,6 +283,19 @@ def _make_benchmark_performance_figure(storage_dirs, save_dir, y_error_bars, log
             else:
                 raise NotImplementedError
 
+    return scores, scores_means, scores_err_up, scores_err_down, sorted_inner_keys, reference_key
+
+
+def _make_benchmark_performance_figure(storage_dirs, save_dir, y_error_bars, logger, normalize_with_first_model=True,
+                                       sort_bars=False):
+    scores, scores_means, scores_err_up, scores_err_down, sorted_inner_keys, reference_key = _gather_scores(
+        storage_dirs=storage_dirs,
+        save_dir=save_dir,
+        y_error_bars=y_error_bars,
+        logger=logger,
+        normalize_with_first_model=normalize_with_first_model,
+        sort_bars=sort_bars)
+
     # Creates the graph
 
     n_bars_per_group = len(scores_means.keys())
@@ -291,7 +312,7 @@ def _make_benchmark_performance_figure(storage_dirs, save_dir, y_error_bars, log
 
     n_training_seeds = scores[reference_key][list(scores_means[reference_key].keys())[0]].shape[0]
 
-    scores_info = load_dict_from_json(filename=str(storage_dir / save_dir / f"{save_dir}_seed_scores_info.json"))
+    scores_info = load_dict_from_json(filename=str(storage_dirs[0] / save_dir / f"{save_dir}_seed_scores_info.json"))
 
     info_str = f"{n_training_seeds} training seeds" \
                f"\nn_eval_runs={scores_info['n_eval_runs']}" \
@@ -300,6 +321,8 @@ def _make_benchmark_performance_figure(storage_dirs, save_dir, y_error_bars, log
 
     ax.text(0.80, 0.95, info_str, transform=ax.transAxes, fontsize=12,
             verticalalignment='top', bbox=dict(facecolor='gray', alpha=0.1))
+
+    plt.tight_layout()
 
     # Saves storage_dirs from which the graph was created for traceability
 
@@ -316,13 +339,23 @@ def _make_benchmark_performance_figure(storage_dirs, save_dir, y_error_bars, log
 
     plt.close(fig)
 
+    # SANITY-CHECKS that no seeds has a Nan score to avoid making create best on it
+
+    expe_with_nan_scores=[]
+    for outer_key in scores.keys():
+        for inner_key, indiv_score in scores[outer_key].items():
+            if math.isnan(indiv_score.mean()):
+                expe_with_nan_scores.append(outer_key+"/experiment" + inner_key)
+
+    if len(expe_with_nan_scores)>0:
+        raise ValueError(f'Some experiments have nan scores. Remove them from storage and clean summary folder to continue\n'
+                         f'experiments with Nan Scores:\n' + '\n'.join(expe_with_nan_scores))
+
     return sorted_inner_keys
 
 
 def _gather_experiments_training_curves(storage_dir, graph_key, curve_key, logger, x_metric, y_metric,
                                         x_data=None, y_data=None):
-    assert graph_key in ['task_name', 'storage_name', 'experiment_num', 'alg_name']
-    assert curve_key in ['task_name', 'storage_name', 'experiment_num', 'alg_name']
 
     # Initialize containers
 
@@ -356,14 +389,12 @@ def _gather_experiments_training_curves(storage_dir, graph_key, curve_key, logge
 
             config_dict = load_dict_from_json(str(seed_dir / "config.json"))
 
-            # Selects how data will be identified
+            # Keys can be any information stored in config.json
+            # We also handle a few special cases (e.g. "experiment_num")
 
-            keys = {
-                "task_name": config_dict["task_name"],
-                "storage_name": seed_dir.parents[1],
-                "alg_name": config_dict["alg_name"],
-                "experiment_num": seed_dir.parent.stem.strip('experiment')
-            }
+            keys = config_dict.copy()
+            keys['experiment_num'] = seed_dir.parent.stem.strip('experiment')
+            keys['storage_name'] = seed_dir.parents[1]
 
             outer_key = keys[graph_key]  # number of graphs to be made
             inner_key = keys[curve_key]  # number of curves per graph
@@ -384,18 +415,22 @@ def _gather_experiments_training_curves(storage_dir, graph_key, curve_key, logge
                 y_data[outer_key][inner_key] = []
 
             x_data[outer_key][inner_key].append(loaded_recorder.tape[x_metric])
-            y_data[outer_key][inner_key].append(loaded_recorder.tape[y_metric])
+            y_data[outer_key][inner_key].append(loaded_recorder.tape[y_metric])  # TODO: make sure that this is a scalar metric, even for eval_return (and not 10 points for every eval_step). All metrics saved in the recorder should be scalars for every time point.
 
     return x_data, y_data
 
 
-def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_bars, storage_dirs, save_dir, logger, n_labels=np.inf, visuals_file=None):
+def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_bars, storage_dirs, save_dir, logger,
+                                    n_labels=np.inf, visuals_file=None, additional_curves_file=None):
     # Initialize containers
 
     y_data_means = OrderedDict()
     y_data_err_up = OrderedDict()
     y_data_err_down = OrderedDict()
     long_labels = OrderedDict()
+    titles = OrderedDict()
+    x_axis_titles = OrderedDict()
+    y_axis_titles = OrderedDict()
     labels = OrderedDict()
     colors = OrderedDict()
     markers = OrderedDict()
@@ -414,21 +449,14 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
 
     elif n_graphs > 1:
         i_max = int(np.ceil(np.sqrt(len(y_data.keys()))))
-        axes_shape = (i_max, int(np.ceil(len(y_data.keys()) / i_max)))
+        axes_shape = (int(np.ceil(len(y_data.keys()) / i_max)), i_max)
     else:
         axes_shape = (1, 1)
 
     # Creates figure
 
     gs = gridspec.GridSpec(*axes_shape)
-    fig = plt.figure(figsize=(12 * axes_shape[1], 5 * axes_shape[0]))
-
-    # Loads visuals dictionaries
-
-    if visuals_file is not None:
-        visuals = load_dict_from_json(visuals_file)
-    else:
-        visuals = None
+    fig = plt.figure(figsize=(8 * axes_shape[1], 4 * axes_shape[0]))
 
     # Compute means and stds for all inner_key curve from raw data
 
@@ -443,7 +471,8 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                 y_data_err_down = y_data_err_up
 
             elif y_error_bars == "bootstrapped_CI":
-                y_data_samples = np.stack(y_data[outer_key][inner_key], axis=-1)  # dim=0 is accross time (n_time_steps, n_samples)
+                y_data_samples = np.stack(y_data[outer_key][inner_key],
+                                          axis=-1)  # dim=0 is accross time (n_time_steps, n_samples)
                 mean, err_up, err_down = get_95_confidence_interval_of_sequence(list_of_samples=y_data_samples,
                                                                                 method=y_error_bars)
                 y_data_means[outer_key][inner_key] = mean
@@ -473,13 +502,8 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
             current_ax = fig.add_subplot(gs[0, 0])
         elif any(np.array(axes_shape) == 1):
             current_ax = fig.add_subplot(gs[0, i])
-        elif axes_shape == (2, 2):
-            current_ax = fig.add_subplot(gs[i // 2, i % 2])
         else:
-            if i == 0:
-                current_ax = fig.add_subplot(gs[0, :])
-            else:
-                current_ax = fig.add_subplot(gs[1, i - 1])
+            current_ax = fig.add_subplot(gs[i // axes_shape[1], i % axes_shape[1]])
 
         # Collect algorithm names
 
@@ -489,7 +513,210 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                 _, _, alg, _, _ = DirectoryTree.extract_info_from_storage_name(path.name)
                 algs.append(alg)
 
+        # Loads visuals dictionaries
+
+        if visuals_file is not None:
+            visuals = load_dict_from_json(visuals_file)
+        else:
+            visuals = None
+
+        # Loads additional curves file
+
+        if additional_curves_file is not None:
+            additional_curves = load_dict_from_json(additional_curves_file)
+        else:
+            additional_curves = None
+
         # Sets visuals
+
+        if type(visuals) is dict and 'titles_dict' in visuals.keys():
+            titles[outer_key] = visuals['titles_dict'][outer_key]
+        else:
+            titles[outer_key] = outer_key
+
+        if type(visuals) is dict and 'axis_titles_dict' in visuals.keys():
+            x_axis_titles[outer_key] = visuals['axis_titles_dict'][x_metric]
+            y_axis_titles[outer_key] = visuals['axis_titles_dict'][y_metric]
+        else:
+            x_axis_titles[outer_key] = x_metric
+            y_axis_titles[outer_key] = y_metric
+
+        if type(visuals) is dict and 'labels_dict' in visuals.keys():
+            labels[outer_key] = [visuals['labels_dict'][inner_key] for inner_key in y_data_means[outer_key].keys()]
+        else:
+            labels[outer_key] = long_labels[outer_key]
+
+        if type(visuals) is dict and 'colors_dict' in visuals.keys():
+            colors[outer_key] = [visuals['colors_dict'][inner_key] for inner_key in y_data_means[outer_key].keys()]
+        else:
+            colors[outer_key] = [None for _ in long_labels[outer_key]]
+
+        if type(visuals) is dict and 'markers_dict' in visuals.keys():
+            markers[outer_key] = [visuals['markers_dict'][inner_key] for inner_key in y_data_means[outer_key].keys()]
+        else:
+            markers[outer_key] = [None for _ in long_labels[outer_key]]
+
+        logger.info(f"Graph for {outer_key}:\n\tlabels={labels}\n\tcolors={colors}\n\tmarkers={markers}")
+
+        if additional_curves_file is not None:
+            hlines = additional_curves['hlines'][outer_key]
+            n_lines = len(hlines)
+        else:
+            hlines = None
+            n_lines = 0
+
+        # Plots the curves
+
+        plot_curves(current_ax,
+                    xs=list(x_data[outer_key].values()),
+                    ys=list(y_data_means[outer_key].values()),
+                    fill_up=list(y_data_err_up[outer_key].values()),
+                    fill_down=list(y_data_err_down[outer_key].values()),
+                    labels=labels[outer_key],
+                    colors=colors[outer_key],
+                    markers=markers[outer_key],
+                    xlabel=x_axis_titles[outer_key],
+                    ylabel=y_axis_titles[outer_key] if i == 0 else "",
+                    title=titles[outer_key].upper(),
+                    add_legend=True if i == (len(list(y_data.keys())) - 1) else False,
+                    legend_outside=True,
+                    legend_loc="upper right",
+                    legend_pos=(0.95, -0.2),
+                    legend_n_columns=len(list(y_data_means[outer_key].values())) + n_lines,
+                    hlines=hlines,
+                    tick_font_size=22,
+                    axis_font_size=26,
+                    legend_font_size=26,
+                    title_font_size=28)
+
+    plt.tight_layout()
+
+    for storage_dir in storage_dirs:
+        os.makedirs(storage_dir / save_dir, exist_ok=True)
+        fig.savefig(storage_dir / save_dir / f'{save_dir}_learning.pdf', bbox_inches='tight')
+
+    plt.close(fig)
+
+
+def _make_vertical_densities_figure(storage_dirs, visuals_file, additional_curves_file, make_box_plot, queried_performance_metric,
+                                    queried_performance_aggregation, save_dir, load_dir, logger):
+    # Initialize container
+
+    all_means = OrderedDict()
+    long_labels = OrderedDict()
+    titles = OrderedDict()
+    labels = OrderedDict()
+    colors = OrderedDict()
+    markers = OrderedDict()
+    all_performance_metrics = []
+    all_performance_aggregation = []
+
+    # Gathers data
+
+    for storage_dir in storage_dirs:
+        logger.debug(storage_dir)
+
+        # Loads the scores and scores_info saved by summarize_search
+
+        with open(str(storage_dir / load_dir / f"{load_dir}_seed_scores.pkl"), "rb") as f:
+            scores = pickle.load(f)
+
+        scores_info = load_dict_from_json(str(storage_dir / "summary" / f"summary_seed_scores_info.json"))
+        all_performance_metrics.append(scores_info['performance_metric'])
+        all_performance_aggregation.append(scores_info['performance_aggregation'])
+
+        x = list(scores.keys())[0]
+        storage_name = storage_dir.name
+
+        # Adding task_name if first time it is encountered
+
+        _, _, _, outer_key, _ = DirectoryTree.extract_info_from_storage_name(storage_name)
+        if outer_key not in list(all_means.keys()):
+            all_means[outer_key] = OrderedDict()
+
+        # Taking the mean across evaluations and seeds
+
+        _, _, _, outer_key, _ = DirectoryTree.extract_info_from_storage_name(storage_name)
+        all_means[outer_key][storage_name] = [array.mean() for array in scores[x].values()]
+
+        if outer_key not in long_labels.keys():
+            long_labels[outer_key] = [storage_dir]
+        else:
+            long_labels[outer_key].append(storage_dir)
+
+    # Security checks
+
+    assert len(set(all_performance_metrics)) == 1 and len(set(all_performance_aggregation)) == 1, \
+        "Error: all seeds do not have scores computed using the same performance metric or performance aggregation. " \
+        "You should benchmark with --re_run_if_exists=True using the desired --performance_aggregation and " \
+        "--performance_metric so that all seeds that you want to compare have the same metrics."
+    actual_performance_metric = all_performance_metrics.pop()
+    actual_performance_aggregation = all_performance_aggregation.pop()
+
+    assert queried_performance_metric == actual_performance_metric and \
+           queried_performance_aggregation == actual_performance_aggregation, \
+        "Error: The performance_metric or performance_aggregation that was queried for the vertical_densities " \
+        "is not the same as what was saved by summarize_search. You should benchmark with --re_run_if_exists=True " \
+        "using the desired --performance_aggregation and  --performance_metric so that all seeds that you want " \
+        "to compare have the same metrics."
+
+    # Initialize figure
+
+    n_graphs = len(all_means.keys())
+
+    if n_graphs == 3:
+        axes_shape = (1, 3)
+
+    elif n_graphs > 1:
+        i_max = int(np.ceil(np.sqrt(len(all_means.keys()))))
+        axes_shape = (int(np.ceil(len(all_means.keys()) / i_max)), i_max)
+    else:
+        axes_shape = (1, 1)
+
+    # Creates figure
+
+    gs = gridspec.GridSpec(*axes_shape)
+    fig = plt.figure(figsize=(12 * axes_shape[1], 5 * axes_shape[0]))
+
+    for i, outer_key in enumerate(all_means.keys()):
+
+        # Selects right ax object
+
+        if axes_shape == (1, 1):
+            current_ax = fig.add_subplot(gs[0, 0])
+        elif any(np.array(axes_shape) == 1):
+            current_ax = fig.add_subplot(gs[0, i])
+        else:
+            current_ax = fig.add_subplot(gs[i // axes_shape[1], i % axes_shape[1]])
+
+        # Collect algorithm names
+
+        if all([type(long_label) is pathlib.PosixPath for long_label in long_labels[outer_key]]):
+            algs = []
+            for path in long_labels[outer_key]:
+                _, _, alg, _, _ = DirectoryTree.extract_info_from_storage_name(path.name)
+                algs.append(alg)
+
+        # Loads visuals dictionaries
+
+        if visuals_file is not None:
+            visuals = load_dict_from_json(visuals_file)
+        else:
+            visuals = None
+
+        # Loads additional curves file
+
+        if additional_curves_file is not None:
+            additional_curves = load_dict_from_json(additional_curves_file)
+        else:
+            additional_curves = None
+
+        # Sets visuals
+
+        if type(visuals) is dict and 'titles_dict' in visuals.keys():
+            titles[outer_key] = visuals['titles_dict'][outer_key]
+        else:
+            titles[outer_key] = outer_key
 
         if type(visuals) is dict and 'labels_dict' in visuals.keys():
             labels[outer_key] = [visuals['labels_dict'][alg] for alg in algs]
@@ -508,151 +735,32 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
 
         logger.info(f"Graph for {outer_key}:\n\tlabels={labels}\n\tcolors={colors}\n\tmarkers={markers}")
 
-        # Plots the curves
-
-        plot_curves(current_ax,
-                    xs=list(x_data[outer_key].values()),
-                    ys=list(y_data_means[outer_key].values()),
-                    fill_up=list(y_data_err_up[outer_key].values()),
-                    fill_down=list(y_data_err_down[outer_key].values()),
-                    labels=labels[outer_key],
-                    colors=colors[outer_key],
-                    markers=markers[outer_key],
-                    xlabel=x_metric,
-                    ylabel=y_metric,
-                    title=outer_key.upper(),
-                    add_legend=True if i==(len(list(y_data.keys())) - 1) else False,
-                    legend_underneath=True)
-
-    for storage_dir in storage_dirs:
-        os.makedirs(storage_dir / save_dir, exist_ok=True)
-        fig.savefig(storage_dir / save_dir / f'{save_dir}_learning.png', bbox_inches='tight')
-
-    plt.close(fig)
-
-
-def _make_vertical_densities_figure(storage_dirs, visuals_file, make_box_plot, y_metric, save_dir, load_dir, logger):
-    # Initialize container
-
-    all_means = OrderedDict()
-    long_labels = OrderedDict()
-    labels = OrderedDict()
-    colors = OrderedDict()
-    markers = OrderedDict()
-
-    # Loads visuals dictionaries
-
-    if visuals_file is not None:
-        visuals = load_dict_from_json(visuals_file)
-    else:
-        visuals = None
-
-    # Gathers data
-
-    for storage_dir in storage_dirs:
-        logger.debug(storage_dir)
-
-        # Loads the scores saved by summarize_search
-
-        with open(str(storage_dir / load_dir / f"{load_dir}_seed_scores.pkl"), "rb") as f:
-            scores = pickle.load(f)
-
-        # Taking the mean across seeds and evaluation-runs for each experiment
-
-        x = list(scores.keys())[0]
-        storage_name = storage_dir.name
-
-        # Adding task_name if first time it is encountered
-
-        _, _, _, task_name, _ = DirectoryTree.extract_info_from_storage_name(storage_name)
-        if task_name not in list(all_means.keys()):
-            all_means[task_name] = OrderedDict()
-
-        # Taking the mean across evaluations and seeds
-
-        _, _, _, task_name, _ = DirectoryTree.extract_info_from_storage_name(storage_dir.name)
-        all_means[task_name][storage_name] = [array.mean() for array in scores[x].values()]
-
-        if task_name not in long_labels.keys():
-            long_labels[task_name] = [storage_dir]
+        if additional_curves_file is not None:
+            hlines = additional_curves['hlines'][outer_key]
         else:
-            long_labels[task_name].append(storage_dir)
-
-    # Initialize figure
-
-    n_graphs = len(all_means.keys())
-
-    if n_graphs == 3:
-        axes_shape = (1, 3)
-
-    elif n_graphs > 1:
-        i_max = int(np.ceil(np.sqrt(len(all_means.keys()))))
-        axes_shape = (i_max, int(np.ceil(len(all_means.keys()) / i_max)))
-    else:
-        axes_shape = (1, 1)
-
-    # Creates figure
-
-    gs = gridspec.GridSpec(*axes_shape)
-    fig = plt.figure(figsize=(12 * axes_shape[1], 5 * axes_shape[0]))
-
-    for i, task_name in enumerate(all_means.keys()):
-
-        # Selects right ax object
-
-        if axes_shape == (1, 1):
-            current_ax = fig.add_subplot(gs[0, 0])
-        elif any(np.array(axes_shape) == 1):
-            current_ax = fig.add_subplot(gs[0, i])
-        else:
-            current_ax = fig.add_subplot(gs[i // axes_shape[1], i % axes_shape[1]])
-
-        # Collect algorithm names
-
-        if all([type(long_label) is pathlib.PosixPath for long_label in long_labels[task_name]]):
-            algs = []
-            for path in long_labels[task_name]:
-                _, _, alg, _, _ = DirectoryTree.extract_info_from_storage_name(path.name)
-                algs.append(alg)
-
-        # Sets visuals
-
-        if type(visuals) is dict and 'labels_dict' in visuals.keys():
-            labels[task_name] = [visuals['labels_dict'][alg] for alg in algs]
-        else:
-            labels[task_name] = long_labels[task_name]
-
-        if type(visuals) is dict and 'colors_dict' in visuals.keys():
-            colors[task_name] = [visuals['colors_dict'][alg] for alg in algs]
-        else:
-            colors[task_name] = [None for _ in long_labels[task_name]]
-
-        if type(visuals) is dict and 'markers_dict' in visuals.keys():
-            markers[task_name] = [visuals['markers_dict'][alg] for alg in algs]
-        else:
-            markers[task_name] = [None for _ in long_labels[task_name]]
-
-        logger.info(f"Graph for {task_name}:\n\tlabels={labels}\n\tcolors={colors}\n\tmarkers={markers}")
+            hlines = None
 
         # Makes the plots
 
         plot_vertical_densities(ax=current_ax,
-                                ys=list(all_means[task_name].values()),
-                                labels=labels[task_name],
-                                colors=colors[task_name],
+                                ys=list(all_means[outer_key].values()),
+                                labels=labels[outer_key],
+                                colors=colors[outer_key],
                                 make_boxplot=make_box_plot,
-                                title=task_name.upper(),
-                                ylabel=y_metric)
+                                title=titles[outer_key].upper(),
+                                ylabel=f"{actual_performance_aggregation}-{actual_performance_metric}",
+                                hlines=hlines)
 
     # Saves the figure
+
+    plt.tight_layout()
 
     filename_addon = "boxplot" if make_box_plot else ""
 
     for storage_dir in storage_dirs:
         os.makedirs(storage_dir / save_dir, exist_ok=True)
 
-        fig.savefig(storage_dir / save_dir / f'{save_dir}_vertical_densities_{filename_addon}.pdf',
-                    bbox_inches="tight")
+        fig.savefig(storage_dir / save_dir / f'{save_dir}_vertical_densities_{filename_addon}.pdf', bbox_inches="tight")
 
         save_dict_to_json([str(storage_dir) in storage_dirs],
                           storage_dir / save_dir / f'{save_dir}_vertical_densities_sources.json')
@@ -662,8 +770,9 @@ def _make_vertical_densities_figure(storage_dirs, visuals_file, make_box_plot, y
 
 # benchmark interface ---------------------------------------------------------------------------------------------
 
-def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric, y_error_bars, visuals_file,
-                   performance_metric, performance_aggregation, make_performance_chart=True, make_learning_plots=True):
+def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric, y_error_bars,
+                   visuals_file, additional_curves_file, performance_metric, performance_aggregation,
+                   make_performance_chart=True, make_learning_plots=True):
     """
     compare_models compare several storage_dirs
     """
@@ -681,7 +790,7 @@ def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_di
             x_data, y_data = _gather_experiments_training_curves(
                 storage_dir=get_root(root_dir) / storage_name,
                 graph_key="task_name",
-                curve_key="storage_name",
+                curve_key="storage_name" if logger.level == 10 else "alg_name",
                 logger=logger,
                 x_metric=x_metric,
                 y_metric=y_metric,
@@ -699,7 +808,8 @@ def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_di
                                         n_labels=np.inf,
                                         save_dir="benchmark",
                                         logger=logger,
-                                        visuals_file=visuals_file)
+                                        visuals_file=visuals_file,
+                                        additional_curves_file=additional_curves_file)
 
     if make_performance_chart:
         logger.debug(f'\n{"benchmark_performance".upper()}:')
@@ -712,7 +822,7 @@ def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_di
                                  performance_aggregation=performance_aggregation,
                                  n_eval_runs=n_eval_runs,
                                  group_key="task_name",
-                                 bar_key="storage_name",
+                                 bar_key="storage_name" if logger.level == 10 else "alg_name",
                                  re_run_if_exists=re_run_if_exists,
                                  save_dir="benchmark",
                                  logger=logger,
@@ -732,7 +842,7 @@ def compare_models(storage_names, n_eval_runs, re_run_if_exists, logger, root_di
 
 def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_dir, x_metric, y_metric, y_error_bars,
                      performance_metric, performance_aggregation, make_performance_chart=True,
-                     make_learning_plots=True, visuals_file=None):
+                     make_learning_plots=True):
     """
     Summaries act inside a single storage_dir
     """
@@ -740,6 +850,10 @@ def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_d
     assert type(storage_name) is str
 
     storage_dir = get_root(root_dir) / storage_name
+
+    if re_run_if_exists and (storage_dir / "summary").exists():
+        shutil.rmtree(storage_dir / "summary")
+
 
     if make_learning_plots:
         logger.debug(f'\n{"benchmark_learning".upper()}:')
@@ -770,7 +884,7 @@ def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_d
                              performance_metric=performance_metric,
                              performance_aggregation=performance_aggregation,
                              group_key="experiment_num",
-                             bar_key="storage_name",
+                             bar_key="storage_name" if logger.level == 10 else "alg_name",
                              re_run_if_exists=re_run_if_exists,
                              save_dir="summary",
                              logger=logger,
@@ -791,7 +905,8 @@ def summarize_search(storage_name, n_eval_runs, re_run_if_exists, logger, root_d
     return
 
 
-def compare_searches(storage_names, visuals_file, re_run_if_exists, y_error_bars, logger, root_dir):
+def compare_searches(storage_names, x_metric, y_metric, y_error_bars, performance_metric, performance_aggregation,
+                     visuals_file, additional_curves_files, re_run_if_exists, logger, root_dir, n_eval_runs):
     """
     compare_searches compare several storage_dirs
     """
@@ -807,23 +922,24 @@ def compare_searches(storage_names, visuals_file, re_run_if_exists, y_error_bars
     for storage_dir in storage_dirs:
         if not (storage_dir / "summary" / f"summary_seed_scores.pkl").exists() or re_run_if_exists:
             summarize_search(storage_name=storage_dir.name,
-                             n_eval_runs=None,
-                             x_metric="episode",
-                             y_metric="eval_return",
-                             y_error_bars="y_error_bars",
-                             performance_metric="avg_eval_return",
-                             performance_aggregation="last",
+                             n_eval_runs=n_eval_runs,
+                             x_metric=x_metric,
+                             y_metric=y_metric,
+                             y_error_bars=y_error_bars,
+                             performance_metric=performance_metric,
+                             performance_aggregation=performance_aggregation,
                              re_run_if_exists=re_run_if_exists,
                              make_performance_chart=True,
                              make_learning_plots=True,
                              logger=logger,
-                             root_dir=root_dir,
-                             visuals_file=visuals_file)
+                             root_dir=root_dir)
 
     _make_vertical_densities_figure(storage_dirs=storage_dirs,
                                     visuals_file=visuals_file,
+                                    additional_curves_file=additional_curves_file,
                                     make_box_plot=True,
-                                    y_metric="eval_return",
+                                    queried_performance_metric=performance_metric,
+                                    queried_performance_aggregation=performance_aggregation,
                                     load_dir="summary",
                                     save_dir="benchmark",
                                     logger=logger)
@@ -833,42 +949,49 @@ def compare_searches(storage_names, visuals_file, re_run_if_exists, y_error_bars
 
 if __name__ == '__main__':
     benchmark_args = get_benchmark_args()
-    logger = create_logger(name="BENCHMARK - MAIN", loglevel=logging.DEBUG)
+    logger = create_logger(name="BENCHMARK - MAIN", loglevel=benchmark_args.log_level)
 
-    # Checks how the list of storage_names to act on is provided
+    # Gets storage_dirs list
 
-    visuals_file = None
+    storage_dirs = select_storage_dirs(from_file=benchmark_args.from_file,
+                                       storage_name=benchmark_args.storage_names,
+                                       root_dir=benchmark_args.root_dir)
 
-    if benchmark_args.storage_names is None and benchmark_args.from_file is None:
-        raise ValueError("One of --storage_names or --from_file must be defined for benchmark.py to know what to work on")
+    # Sanity-check that storages exist
 
-    if benchmark_args.storage_names is not None:
-        assert benchmark_args.from_file is None, "If --storage_names is defined, from_file must be None."
+    storage_dirs = [storage_dir for storage_dir in storage_dirs if sanity_check_exists(storage_dir, logger)]
+
+    # convert them to storage_name to be compatible with the function called down the line
+
+    benchmark_args.storage_names = [storage_dir_path.name for storage_dir_path in storage_dirs]
+
+    # Gets visuals_file for plotting
 
     if benchmark_args.from_file is not None:
-        assert benchmark_args.storage_names is None, "If --from_file is defined, storage_names must be None."
-
-        # Get storage_names to benchmark
-
-        with open(benchmark_args.from_file, "r") as f:
-            storage_names = f.readlines()
-        benchmark_args.storage_names = [sto_name.strip('\n') for sto_name in storage_names]
 
         # Gets path of visuals_file
 
         schedule_name = Path(benchmark_args.from_file).parent.stem
         visuals_file = Path(benchmark_args.from_file).parent / f"visuals_{schedule_name}.json"
+        additional_curves_file = Path(benchmark_args.from_file).parent / f"additional_curves_{schedule_name}.json"
         if not visuals_file.exists():
             visuals_file = None
+        if not additional_curves_file.exists():
+            additional_curves_file = None
+
+    else:
+        visuals_file = None
+        additional_curves_file = None
 
     # Launches the requested benchmark type (comparing searches [vertical densities] or comparing final models [learning curves])
 
     if benchmark_args.benchmark_type == "compare_models":
         compare_models(storage_names=benchmark_args.storage_names,
-                       x_metric="episode",
-                       y_metric="eval_return",
+                       x_metric=benchmark_args.x_metric,
+                       y_metric=benchmark_args.y_metric,
                        y_error_bars=benchmark_args.y_error_bars,
                        visuals_file=visuals_file,
+                       additional_curves_file=additional_curves_file,
                        n_eval_runs=benchmark_args.n_eval_runs,
                        performance_metric=benchmark_args.performance_metric,
                        performance_aggregation=benchmark_args.performance_aggregation,
@@ -880,8 +1003,14 @@ if __name__ == '__main__':
 
     elif benchmark_args.benchmark_type == "compare_searches":
         compare_searches(storage_names=benchmark_args.storage_names,
+                         x_metric=benchmark_args.x_metric,
+                         y_metric=benchmark_args.y_metric,
                          y_error_bars=benchmark_args.y_error_bars,
+                         performance_metric=benchmark_args.performance_metric,
+                         performance_aggregation=benchmark_args.performance_aggregation,
+                         n_eval_runs=benchmark_args.n_eval_runs,
                          visuals_file=visuals_file,
+                         additional_curves_files=additional_curves_file,
                          re_run_if_exists=benchmark_args.re_run_if_exists,
                          logger=logger,
                          root_dir=get_root(benchmark_args.root_dir))

@@ -1,5 +1,6 @@
 import logging
 import json
+import argparse
 from types import SimpleNamespace
 
 
@@ -15,6 +16,30 @@ def parse_bool(bool_arg):
         return False
     else:
         raise ValueError(f'Boolean argument expected. Got {bool_arg} instead.')
+
+
+def convert_to_type_from_str(string):
+    if any(char.isdigit() for char in string):
+        # we are dealing with numbers
+        if '.' in string:
+            val = float(string)
+        else:
+            val = int(string)
+
+    else:
+        # we are not dealing special types
+
+        string = string.strip()
+
+        if string.lower() == "none":
+            val = None
+        else:
+            try:
+                val = parse_bool(string)
+            except ValueError:
+                # if we cannot identify the type it must be a str and we pass it as is
+                val = string
+    return val
 
 
 def parse_log_level(level_arg):
@@ -83,3 +108,10 @@ def config_to_str(config):
     for arg in vars(config):
         config_string += f'\n    {arg}: {getattr(config, arg)}'
     return config_string
+
+
+def validate_config_unique(config, config_unique):
+    assert type(config) in [argparse.Namespace, SimpleNamespace]
+    assert type(config_unique) is dict
+    assert all([config.__dict__[k] == config_unique[k] for k in config_unique.keys() if k in config.__dict__.keys()]), \
+        "ERROR: config_unique.json is different than config.json"

@@ -3,6 +3,7 @@ import subprocess
 from pathlib import Path
 from collections import OrderedDict
 
+
 def get_root(root=None):
     return Path(root) if root is not None else Path(DirectoryTree.default_root)
 
@@ -53,7 +54,11 @@ class DirectoryTree(object):
 
         # Defines folder name
 
-        storage_name = f"{id}_{git_hashes}_{alg_name}_{task_name}_{desc}"
+        storage_name = ""
+        for item in [id,git_hashes,alg_name, task_name, desc]:
+            if item != '':
+                storage_name += f"{item}_"
+        storage_name = storage_name[:-1] # removes last underscore
 
         # Level 1: storage_dir
 
@@ -132,13 +137,36 @@ class DirectoryTree(object):
         return instance
 
     @classmethod
+    def init_from_branching_info(cls, root_dir, storage_name, experiment_num, seed_num):
+        id, git_hashes, alg_name, task_name, desc = \
+            DirectoryTree.extract_info_from_storage_name(storage_name)
+
+        instance = cls(id=id,
+                       git_hashes=git_hashes,
+                       alg_name=alg_name,
+                       task_name=task_name,
+                       desc=desc,
+                       experiment_num=experiment_num,
+                       seed=seed_num,
+                       root=root_dir)
+
+        return instance
+
+    @classmethod
     def extract_info_from_storage_name(cls, storage_name):
 
-        id = storage_name.split("_")[0]
-        git_hashes = storage_name.split("_")[1]
-        alg_name = storage_name.split("_")[2]
-        task_name = storage_name.split("_")[3]
-        desc = "_".join(storage_name.split("_")[4:])
+        try:
+            id = storage_name.split("_")[0]
+            git_hashes = storage_name.split("_")[1]
+            alg_name = storage_name.split("_")[2]
+            task_name = storage_name.split("_")[3]
+            desc = "_".join(storage_name.split("_")[4:])
+        except IndexError:
+            id = ''
+            git_hashes = ''
+            alg_name = ''
+            task_name = ''
+            desc = storage_name
 
         return id, git_hashes, alg_name, task_name, desc
 
@@ -179,28 +207,6 @@ def get_all_seeds(storage_dir):
     return all_seeds_dirs
 
 
-def get_storage_dirs_across_tasks(storage_dir, root_dir):
-    # Finds all storage directories that are identical (git_hashes, alg_name, desc) but for the task_name
-
-    all_storage_dirs = sorted([path for path in get_root(root_dir).iterdir() if path.is_dir()])
-
-    similar_storage_dirs = []
-    name_elements_current = storage_dir.name.split('_')
-
-    for dir in all_storage_dirs:
-        name_elements_dir = dir.name.split('_')
-        if all([str_1 == str_2 for i, (str_1, str_2)
-                in enumerate(zip(name_elements_dir, name_elements_current))
-                if i not in [0, 3]]):
-            similar_storage_dirs.append(dir)
-
-    # Moves initial storage_dir in front of the list
-
-    similar_storage_dirs.insert(0, similar_storage_dirs.pop(similar_storage_dirs.index(storage_dir)))
-
-    return similar_storage_dirs
-
-
 def get_git_hash(path):
     try:
         return subprocess.check_output(
@@ -217,3 +223,28 @@ def get_git_name():
 
     except subprocess.CalledProcessError:
         return 'NoGitUsr'
+
+
+def sanity_check_hash(storage_dir, master_logger):
+    current_git_hashes = {}
+    for name, repo in DirectoryTree.git_repos_to_track.items():
+        current_git_hashes[name] = get_git_hash(path=repo)
+
+    _, storage_name_git_hashes, _, _, _ = DirectoryTree.extract_info_from_storage_name(storage_dir.name)
+    storage_name_git_hash_list = storage_name_git_hashes.split("-")
+
+    for i, (name, hash) in enumerate(current_git_hashes.items()):
+        if hash not in storage_name_git_hash_list:
+            master_logger.warning(f"WRONG HASH: repository '{name}' current hash ({hash}) does not match "
+                                  f"storage_dir hash ({storage_name_git_hash_list[i]}): {storage_dir} REMOVED FROM LIST")
+            return False
+
+    return True
+
+
+def sanity_check_exists(storage_dir, master_logger):
+    if not storage_dir.exists():
+        master_logger.warning(f'DIRECTORY NOT FOUND: repository {storage_dir} cannot be found: REMOVED FROM LIST')
+        return False
+    else:
+        return True

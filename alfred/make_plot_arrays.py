@@ -1,6 +1,5 @@
 import argparse
 import logging
-from pathlib import Path
 import numpy as np
 import matplotlib
 from copy import deepcopy
@@ -9,29 +8,47 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from alfred.utils.misc import create_logger, select_storage_dirs
-from alfred.utils.config import load_dict_from_json, parse_bool
-from alfred.utils.recorder import Recorder
+from alfred.utils.config import load_dict_from_json, parse_bool, convert_to_type_from_str, load_config_from_json, \
+    validate_config_unique
+from alfred.utils.recorder import Recorder, remove_nones
 from alfred.utils.plots import plot_curves
 from alfred.utils.directory_tree import DirectoryTree
 
-COMPARATIVE_PLOTS_TO_MAKE = [('total_steps', 'eval_return')]
-
+DEFAULT_PLOTS_TO_MAKE = [('episode', 'eval_return', (None, None), (None, None)),
+                         ('episode', 'return', (None, None), (None, None))]
 
 def get_make_plots_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--from_file', type=str, default=None,
                         help="Path containing all the storage_names for which to make plots")
-
     parser.add_argument('--storage_name', type=str, default=None)
-    parser.add_argument('--over_tasks', type=parse_bool, default=False,
-                        help="If true, make_comparative_plots will look for all storage_dir "
-                             "that have the same hashes, 'alg_name', 'desc' but different 'task_name'")
+    parser.add_argument('--plots_to_make', type=plot_definition_parser, nargs='+', default=DEFAULT_PLOTS_TO_MAKE,
+                        help="To specify the plots: 'x_metric, y_metric, x_min, x_max, y_min, y_max'.\n"
+                             "E.g: --plots_to_make \"episode, eval_return, None, None, None, None\" "
+                             "\"episode, episode_len, None, None, 0, 350\""
+                             "(note: be mindful to put the whole plot definition inside quotes)")
+
+    parser.add_argument('--remove_none', type=parse_bool, default=False,
+                        help="The Recorder records None for all keys that are not specified in new_recordings "
+                             "(see alfred.utils.recorder.Recorder.write_to_tape()). That allows to associate "
+                             "all values of the recorder with each other by the moment they were recorded. "
+                             "However, because some values might be recorded much more often than others, some "
+                             "metrics will have a lot of None's on their recording-tape, which can make the plots "
+                             "look empty. Choosing --remove_nones=True removes all Nones from the tape. However "
+                             "for this to work, the choosent --x_metric's and --y_metric's sizes must match.")
 
     parser.add_argument('--root_dir', default=None, type=str)
     return parser.parse_args()
 
 
-def create_comparative_figure(from_file, storage_name, over_tasks, root_dir, logger):
+def plot_definition_parser(to_parse):
+    def_args = to_parse.split(',')
+    x_metric, y_metric, x_min, x_max, y_min, y_max = [convert_to_type_from_str(argument) for argument in def_args]
+    return (x_metric, y_metric, (x_min, x_max), (y_min, y_max))
+
+
+def create_plot_arrays(from_file, storage_name, root_dir, remove_none,
+                       logger, plots_to_make=DEFAULT_PLOTS_TO_MAKE):
     """
     Creates and and saves comparative figure containing a plot of total reward for each different experiment
     :param storage_dir: pathlib.Path object of the model directory containing the experiments to compare
@@ -40,7 +57,7 @@ def create_comparative_figure(from_file, storage_name, over_tasks, root_dir, log
     """
     # Select storage_dirs to run over
 
-    storage_dirs = select_storage_dirs(from_file, storage_name, over_tasks, root_dir)
+    storage_dirs = select_storage_dirs(from_file, storage_name, root_dir)
 
     for storage_dir in storage_dirs:
 
@@ -130,8 +147,9 @@ def create_comparative_figure(from_file, storage_name, over_tasks, root_dir, log
             else:
                 first_seed_idx = 0
 
-            for x_metric, y_metric in COMPARATIVE_PLOTS_TO_MAKE:
-                logger.debug(f'\n{y_metric.upper()} as a function of {x_metric.upper()}:')
+            for plot_to_make in plots_to_make:
+                x_metric, y_metric, x_lim, y_lim = plot_to_make
+                logger.debug(f'\n{y_metric} as a function of {x_metric}:')
 
                 # Creates the subplots
 
@@ -167,18 +185,20 @@ def create_comparative_figure(from_file, storage_name, over_tasks, root_dir, log
 
                         # Writes unique hyperparameters on plot
 
-                        config_unique = load_dict_from_json(filename=str(seed_dir / 'config_unique.json'))
+                        config = load_config_from_json(filename=str(seed_dir / 'config.json'))
+                        config_unique_dict = load_dict_from_json(filename=str(seed_dir / 'config_unique.json'))
+                        validate_config_unique(config, config_unique_dict)
 
                         if search_type == 'grid':
-                            sorted_keys = sorted(config_unique.keys(),
+                            sorted_keys = sorted(config_unique_dict.keys(),
                                                  key=lambda item: (properties['variations_lengths'][item], item),
                                                  reverse=True)
 
                         else:
-                            sorted_keys = config_unique
+                            sorted_keys = config_unique_dict
 
                         info_str = f'{seed_dir.parent.stem}\n' + '\n'.join(
-                            [f'{k} = {config_unique[k]}' for k in sorted_keys])
+                            [f'{k} = {config_unique_dict[k]}' for k in sorted_keys])
                         bbox_props = dict(facecolor='gray', alpha=0.1)
                         current_ax.text(0.05, 0.95, info_str, transform=current_ax.transAxes, fontsize=12,
                                         verticalalignment='top', bbox=bbox_props)
@@ -188,7 +208,8 @@ def create_comparative_figure(from_file, storage_name, over_tasks, root_dir, log
                         if (seed_dir / 'UNHATCHED').exists():
                             logger.debug('UNHATCHED')
                             current_ax.text(0.2, 0.2, "UNHATCHED",
-                                            transform=current_ax.transAxes, fontsize=24, fontweight='bold', color='blue')
+                                            transform=current_ax.transAxes, fontsize=24, fontweight='bold',
+                                            color='blue')
                             continue
 
                         if (seed_dir / 'CRASH.txt').exists():
@@ -197,20 +218,56 @@ def create_comparative_figure(from_file, storage_name, over_tasks, root_dir, log
                                             transform=current_ax.transAxes, fontsize=24, fontweight='bold', color='red')
                             continue
 
-                        # Plots data for one experiment
-
                         try:
+
+                            # Loading the recorder
+
                             loaded_recorder = Recorder.init_from_pickle_file(
                                 filename=str(seed_dir / 'recorders' / 'train_recorder.pkl'))
 
-                            if x_metric in loaded_recorder.tape.keys() and y_metric in loaded_recorder.tape.keys():
-                                plot_curves(current_ax,
-                                            ys=[loaded_recorder.tape['return']],
-                                            xs=[loaded_recorder.tape['total_steps']],
-                                            xlabel="Transitions", title="Return")
+                            # Checking if provided metrics are present in the recorder
 
-                            else:
-                                raise Warning(f"One of '{x_metric}' or '{y_metric}' was not recorded in train_recorder.")
+                            if y_metric not in loaded_recorder.tape.keys():
+                                logger.debug(f"'{y_metric}' was not recorded in train_recorder.")
+                                current_ax.text(0.2, 0.2, "ABSENT METRIC", transform=current_ax.transAxes,
+                                                fontsize=24, fontweight='bold', color='red')
+                                continue
+
+                            if x_metric not in loaded_recorder.tape.keys() and x_metric is not None:
+                                if x_metric is None:
+                                    pass
+                                else:
+                                    logger.debug(f"'{x_metric}' was not recorded in train_recorder.")
+                                    current_ax.text(0.2, 0.2, "ABSENT METRIC", transform=current_ax.transAxes,
+                                                    fontsize=24, fontweight='bold', color='red')
+                                    continue
+
+                            # Removing None entries
+
+                            if remove_none:
+                                loaded_recorder.tape[x_metric] = remove_nones(loaded_recorder.tape[x_metric])
+                                loaded_recorder.tape[y_metric] = remove_nones(loaded_recorder.tape[y_metric])
+
+                            # Plotting
+
+                            try:
+
+                                if x_metric is not None:
+                                    plot_curves(current_ax,
+                                                ys=[loaded_recorder.tape[y_metric]],
+                                                xs=[loaded_recorder.tape[x_metric]],
+                                                xlim=x_lim,
+                                                ylim=y_lim,
+                                                xlabel=x_metric, title=y_metric)
+                                else:
+                                    plot_curves(current_ax,
+                                                ys=[loaded_recorder.tape[y_metric]],
+                                                xlim=x_lim,
+                                                ylim=y_lim,
+                                                title=y_metric)
+
+                            except Exception as e:
+                                logger.debug(f'Polotting error: {e}')
 
                         except FileNotFoundError:
                             logger.debug('Training recorder not found')
@@ -218,6 +275,7 @@ def create_comparative_figure(from_file, storage_name, over_tasks, root_dir, log
                                             transform=current_ax.transAxes, fontsize=24, fontweight='bold', color='red')
                             continue
 
+                plt.tight_layout()
                 fig.savefig(str(storage_dir / f'{group_key}_comparative_{y_metric}_over_{x_metric}.png'))
                 plt.close(fig)
 
@@ -225,4 +283,4 @@ def create_comparative_figure(from_file, storage_name, over_tasks, root_dir, log
 if __name__ == '__main__':
     logger = create_logger("PLOTS", logging.DEBUG, logfile=None)
     kwargs = vars(get_make_plots_args())
-    create_comparative_figure(**kwargs, logger=logger)
+    create_plot_arrays(**kwargs, logger=logger)
