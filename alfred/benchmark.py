@@ -1,7 +1,7 @@
 from alfred.utils.config import parse_bool, load_dict_from_json, save_dict_to_json, parse_log_level
 from alfred.utils.misc import create_logger, select_storage_dirs
 from alfred.utils.directory_tree import DirectoryTree, get_root, sanity_check_exists
-from alfred.utils.recorder import Recorder
+from alfred.utils.recorder import Recorder, remove_nones
 from alfred.utils.plots import create_fig, bar_chart, plot_curves, plot_vertical_densities
 from alfred.utils.stats import get_95_confidence_interval_of_sequence, get_95_confidence_interval
 import alfred.defaults
@@ -147,7 +147,7 @@ def _compute_seed_scores(storage_dir, performance_metric, performance_aggregatio
                 loaded_recorder = Recorder.init_from_pickle_file(
                     filename=str(seed_dir / 'recorders' / 'train_recorder.pkl'))
 
-                performance_data = loaded_recorder.tape[performance_metric]
+                performance_data = remove_nones(loaded_recorder.tape[performance_metric])
 
             # Aggregation phase
 
@@ -458,6 +458,14 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
 
     gs = gridspec.GridSpec(*axes_shape)
     fig = plt.figure(figsize=(8 * axes_shape[1], 4 * axes_shape[0]))
+
+    # Remove nones
+
+    for data in [x_data, y_data]:
+        for outer_key in data.keys():
+            for inner_key in data[outer_key].keys():
+                for seed_i, seed_data in enumerate(data[outer_key][inner_key]):
+                    data[outer_key][inner_key][seed_i] = remove_nones(seed_data)
 
     # Compute means and stds for all inner_key curve from raw data
 
