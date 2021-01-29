@@ -108,9 +108,20 @@ def clean_interrupted(from_file, storage_name, clean_crashes, ask_for_validation
 
         # Clean flag-file
 
-        if (storage_dir / "COMPARATIVE_PLOTS_ONGOING").exists():
-            os.remove(str(storage_dir / "COMPARATIVE_PLOTS_ONGOING"))
+        if (storage_dir / "PLOT_ARRAYS_ONGOING").exists():
+            os.remove(str(storage_dir / "PLOT_ARRAYS_ONGOING"))
+        if (storage_dir / "PLOT_ARRAYS_COMPLETED").exists():
+            os.remove(str(storage_dir / "PLOT_ARRAYS_COMPLETED"))
 
+        # Clean summary folder
+
+        if (storage_dir / "summary").exists():
+            shutil.rmtree(storage_dir / "summary")
+
+        # Clean benchmark folder
+
+        if (storage_dir / "benchmark").exists():
+            shutil.rmtree(storage_dir / "benchmark")
 
 if __name__ == '__main__':
     kwargs = vars(get_clean_interrupted_args())
