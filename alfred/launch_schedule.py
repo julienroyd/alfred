@@ -31,6 +31,7 @@ from alfred.utils.misc import create_logger, create_new_filehandler, select_stor
 from alfred.make_plot_arrays import create_plot_arrays
 from alfred.clean_interrupted import clean_interrupted
 from alfred.benchmark import summarize_search
+import alfred.defaults
 
 
 def get_launch_schedule_args():
@@ -160,8 +161,9 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
                         create_plot_arrays(from_file=None,
                                            storage_name=storage_dir.name,
                                            root_dir=root_dir,
-                                           remove_none=False,
-                                           logger=logger)
+                                           remove_none=True,
+                                           logger=logger,
+                                           plots_to_make=alfred.defaults.DEFAULT_PLOTS_ARRAYS_TO_MAKE)
 
                         open(str(storage_dir / 'PLOT_ARRAYS_COMPLETED'), 'w+').close()
 
@@ -183,11 +185,11 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
 
                         try:
                             summarize_search(storage_name=storage_dir.name,
-                                             x_metric="episode",
-                                             y_metric="eval_return",
+                                             x_metric=alfred.defaults.DEFAULT_BENCHMARK_X_METRIC,
+                                             y_metric=alfred.defaults.DEFAULT_BENCHMARK_Y_METRIC,
                                              y_error_bars="bootstrapped_CI",
                                              n_eval_runs=None,
-                                             performance_metric="eval_return",
+                                             performance_metric=alfred.defaults.DEFAULT_BENCHMARK_PERFORMANCE_METRIC,
                                              performance_aggregation="mean_on_last_20_percents",
                                              re_run_if_exists=False,
                                              make_performance_chart=True,

@@ -4,6 +4,7 @@ from alfred.utils.directory_tree import DirectoryTree, get_root, sanity_check_ex
 from alfred.utils.recorder import Recorder
 from alfred.utils.plots import create_fig, bar_chart, plot_curves, plot_vertical_densities
 from alfred.utils.stats import get_95_confidence_interval_of_sequence, get_95_confidence_interval
+import alfred.defaults
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -32,8 +33,8 @@ def get_benchmark_args():
     parser.add_argument('--from_file', type=str, default=None)
     parser.add_argument('--storage_names', type=str, nargs='+', default=None)
 
-    parser.add_argument('--x_metric', default="episode", type=str)
-    parser.add_argument('--y_metric', default="eval_return", type=str)
+    parser.add_argument('--x_metric', default=alfred.defaults.DEFAULT_BENCHMARK_X_METRIC, type=str)
+    parser.add_argument('--y_metric', default=alfred.defaults.DEFAULT_BENCHMARK_Y_METRIC, type=str)
     parser.add_argument('--y_error_bars', default="bootstrapped_CI",
                         choices=["bootstrapped_CI", "stderr", "10th_quantile"])
 
@@ -41,7 +42,7 @@ def get_benchmark_args():
                         help="Whether to re-compute seed_scores if 'seed_scores.pkl' already exists")
     parser.add_argument('--n_eval_runs', type=int, default=100,
                         help="Only used if performance_metric=='evaluation_runs'")
-    parser.add_argument('--performance_metric', type=str, default='eval_return',
+    parser.add_argument('--performance_metric', type=str, default=alfred.defaults.DEFAULT_BENCHMARK_PERFORMANCE_METRIC,
                         help="Can fall into either of two categories: "
                              "(1) 'evaluation_runs': evaluate() will be called on model in seed_dir for 'n_eval_runs'"
                              "(2) OTHER METRIC: this metric must have been recorded in training and be a key of train_recorder")

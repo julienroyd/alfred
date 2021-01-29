@@ -13,16 +13,14 @@ from alfred.utils.config import load_dict_from_json, parse_bool, convert_to_type
 from alfred.utils.recorder import Recorder, remove_nones
 from alfred.utils.plots import plot_curves
 from alfred.utils.directory_tree import DirectoryTree
-
-DEFAULT_PLOTS_TO_MAKE = [('episode', 'eval_return', (None, None), (None, None)),
-                         ('episode', 'return', (None, None), (None, None))]
+import alfred.defaults
 
 def get_make_plots_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--from_file', type=str, default=None,
                         help="Path containing all the storage_names for which to make plots")
     parser.add_argument('--storage_name', type=str, default=None)
-    parser.add_argument('--plots_to_make', type=plot_definition_parser, nargs='+', default=DEFAULT_PLOTS_TO_MAKE,
+    parser.add_argument('--plots_to_make', type=plot_definition_parser, nargs='+', default=alfred.defaults.DEFAULT_PLOTS_ARRAYS_TO_MAKE,
                         help="To specify the plots: 'x_metric, y_metric, x_min, x_max, y_min, y_max'.\n"
                              "E.g: --plots_to_make \"episode, eval_return, None, None, None, None\" "
                              "\"episode, episode_len, None, None, 0, 350\""
@@ -48,7 +46,7 @@ def plot_definition_parser(to_parse):
 
 
 def create_plot_arrays(from_file, storage_name, root_dir, remove_none,
-                       logger, plots_to_make=DEFAULT_PLOTS_TO_MAKE):
+                       logger, plots_to_make=alfred.defaults.DEFAULT_PLOTS_ARRAYS_TO_MAKE):
     """
     Creates and and saves comparative figure containing a plot of total reward for each different experiment
     :param storage_dir: pathlib.Path object of the model directory containing the experiments to compare
