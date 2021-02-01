@@ -5,7 +5,7 @@
 # 1. a file named 'main.py'
 # 2. a function 'main.main(config, dir_tree, logger, pbar)' that runs the project with the specified hyperparameters
 try:  # TODO: update this description
-    from main import main
+    from main import main, set_up_alfred
 except ImportError as e:
     raise ImportError(
         f"{e.msg}\n"
@@ -220,6 +220,8 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
 
 def launch_schedule(from_file, storage_name, n_processes, n_experiments_per_proc, use_pbar, check_hash,
                     run_clean_interrupted, root_dir, log_level):
+    set_up_alfred()
+
     # Select storage_dirs to run over
 
     storage_dirs = select_storage_dirs(from_file, storage_name, root_dir)

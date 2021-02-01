@@ -29,6 +29,7 @@ alias alupdate='python -m alfred.update_config_unique'
 
     ├─── alfred
     │
+    |    └─── defaults.py
     │    └─── benchmark.py
     │    └─── clean_interrupted.py
     │    └─── copy_config.py
@@ -58,6 +59,7 @@ This repository contains two different group of files:
 
 * Experiment management scripts directly under `alfred`. They are meant to help manage folder creation, experiment launching and results aggregation. See next section for usage. We refer to them as << alfred's scripts >>.
 * Common functions for plots, directory trees, loggers, argparsers and the like, located under `alfred.utils`. We refer to them as << alfred's utils >>.
+* Some important default configurations are defined in `alfred.defaults.py` as global variables and can be overwritten on the ML side by simply reassigning them inside a function called `main.set_up_alfred()`.
 
 
 ## Usage
@@ -76,6 +78,7 @@ There are some structural requirements that `alfred` expects in order to be able
   2. a function `main.get_run_args(overwritten_cmd_line)` that defines the hyperparameters for this project
   3. a function `main.main(config, dir_tree, logger, pbar)` that launches an experiment with the specified hyperparameters
   4. a folder named `schedules`. A schedule is just a folder that contains everything that defines a hyperparameter-search, mainly, its schedule_file (e.g. `random_schedule_mySearch.py`) but also text files listing which result directories belong to that search, json files for defining some markers, colors and labels for the algorithms in the search, etc. See `alfred/schedule_examples/`.
+  5. [OPTIONAL] a function `main.set_up_alfred()` which sets the default values used by alfred (see in alfred/defaults.py)
 
 That being in place, you can use alfred's scripts to prepare, launch, clean these hyperparameter searches. To use any of the scripts, simply call it from `my_ml_project`. For example:
 
@@ -169,10 +172,10 @@ The directory-tree used by alfred is defined in the class `alfred.utils.director
 ```
 The whole directory-tree is a result of `alfred.prepare_schedule`. It uses a file defining your search and creates the experiment directories accordingly (see `alfred/schedules_examples` for an example of such files).
 
-* `root_dir`: Root-directory. By default it uses `DirectoryTree.default_root`. This default can be overwrited when importing alfred in `,y_ml_project`, or the `--root_dir` can be passed in argument to all `alfred's scripts`.
+* `root_dir`: Root-directory. By default it uses `DirectoryTree.default_root`. This default can be overwrited when importing alfred in `my_ml_project/main.set_up_alfred()`, or the `--root_dir` can be passed in argument to all `alfred's scripts`.
 * `Ju1_f7b375e-58332a7_ppo_cartpole_random_benchmarkv3`: Storage-directory. It is composed of:
   * `Ju1`: the storage-id (defined automatically from git-username and ordinal numbering)
-  * `f7b375e-58332a7`: git-hashes of packages being tracked by alfred. These are defined in `my_ml_project` by giving the path to .git file to alfred, e.g.: `DirectoryTree.git_repos_to_track['mlProject'] = str(Path(__file__).parents[2])`.
+  * `f7b375e-58332a7`: git-hashes of packages being tracked by alfred. These are defined in `my_ml_project` by giving the path to the .git file to alfred in your function main.set_up_alfred(), e.g: `alfred.defaults.DEFAULT_DIRECTORY_TREE_GIT_REPOS_TO_TRACK['mlProject'] = str(Path(__file__).absolute().parents[0])`.
   * `ppo`: Algorithm-name. Defined in schedule-file and `my_ml_project`.
   * `cartpole`: Task-name. Defined in schedule-file and `my_ml_project`.
   * `random`: Search-type. Defined in `alfred.prepare_schedule` from the provided `schedule_file`.
