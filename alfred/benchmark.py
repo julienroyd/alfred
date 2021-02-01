@@ -36,7 +36,7 @@ def get_benchmark_args():
     parser.add_argument('--x_metric', default=alfred.defaults.DEFAULT_BENCHMARK_X_METRIC, type=str)
     parser.add_argument('--y_metric', default=alfred.defaults.DEFAULT_BENCHMARK_Y_METRIC, type=str)
     parser.add_argument('--y_error_bars', default="bootstrapped_CI",
-                        choices=["bootstrapped_CI", "stderr", "10th_quantile"])
+                        choices=["bootstrapped_CI", "stderr", "10th_quantile", "None"])
 
     parser.add_argument('--re_run_if_exists', type=parse_bool, default=False,
                         help="Whether to re-compute seed_scores if 'seed_scores.pkl' already exists")
@@ -281,6 +281,12 @@ def _gather_scores(storage_dirs, save_dir, y_error_bars, logger, normalize_with_
                 scores_err_up[outer_key][inner_key] = err_up
                 scores_err_down[outer_key][inner_key] = err_down
 
+            elif y_error_bars == "None":
+                scores_means[outer_key][inner_key] = np.mean(
+                    scores[outer_key][inner_key] / (reference_means[inner_key] + 1e-8))
+                scores_err_down[outer_key][inner_key] = None
+                scores_err_up[outer_key][inner_key] = None
+
             else:
                 raise NotImplementedError
 
@@ -488,6 +494,11 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                 y_data_err_up[outer_key][inner_key] = err_up
                 y_data_err_down[outer_key][inner_key] = err_down
 
+            elif y_error_bars == "None":
+                y_data_means[outer_key][inner_key] = np.stack(y_data[outer_key][inner_key], axis=-1)
+                y_data_err_up[outer_key][inner_key] = None
+                y_data_err_down[outer_key][inner_key] = None
+
             else:
                 raise NotImplementedError
 
@@ -579,8 +590,8 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
         plot_curves(current_ax,
                     xs=list(x_data[outer_key].values()),
                     ys=list(y_data_means[outer_key].values()),
-                    fill_up=list(y_data_err_up[outer_key].values()),
-                    fill_down=list(y_data_err_down[outer_key].values()),
+                    fill_up=list(y_data_err_up[outer_key].values()) if y_error_bars != "None" else None,
+                    fill_down=list(y_data_err_down[outer_key].values()) if y_error_bars != "None" else None,
                     labels=labels[outer_key],
                     colors=colors[outer_key],
                     markers=markers[outer_key],
