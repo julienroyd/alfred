@@ -477,15 +477,16 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
 
     for i, outer_key in enumerate(y_data.keys()):
         for inner_key in y_data[outer_key].keys():
-            x_data[outer_key][inner_key] = x_data[outer_key][inner_key][0]  # assumes all x_data are the same
 
             if y_error_bars == "stderr":
+                x_data[outer_key][inner_key] = x_data[outer_key][inner_key][0]  # assumes all x_data are the same
                 y_data_means[outer_key][inner_key] = np.stack(y_data[outer_key][inner_key], axis=-1).mean(-1)
                 y_data_err_up[outer_key][inner_key] = np.stack(y_data[outer_key][inner_key], axis=-1).std(-1) \
                                                       / len(y_data_means[outer_key][inner_key]) ** 0.5
                 y_data_err_down = y_data_err_up
 
             elif y_error_bars == "bootstrapped_CI":
+                x_data[outer_key][inner_key] = x_data[outer_key][inner_key][0]  # assumes all x_data are the same
                 y_data_samples = np.stack(y_data[outer_key][inner_key],
                                           axis=-1)  # dim=0 is accross time (n_time_steps, n_samples)
                 mean, err_up, err_down = get_95_confidence_interval_of_sequence(list_of_samples=y_data_samples,
@@ -495,9 +496,14 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                 y_data_err_down[outer_key][inner_key] = err_down
 
             elif y_error_bars == "None":
-                y_data_means[outer_key][inner_key] = np.stack(y_data[outer_key][inner_key], axis=-1)
+                y_data_means[outer_key][inner_key] = y_data[outer_key][inner_key]
                 y_data_err_up[outer_key][inner_key] = None
                 y_data_err_down[outer_key][inner_key] = None
+
+                # Transpose list of lists (necessary for matplotlib to properly plot all curves in one call)
+                # see: https://stackoverflow.com/questions/6473679/transpose-list-of-lists
+                y_data_means[outer_key][inner_key] = list(map(list, zip(*y_data_means[outer_key][inner_key])))
+                x_data[outer_key][inner_key] = list(map(list, zip(*x_data[outer_key][inner_key])))
 
             else:
                 raise NotImplementedError
