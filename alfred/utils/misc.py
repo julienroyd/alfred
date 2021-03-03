@@ -137,18 +137,19 @@ def formatted_time_diff(total_time_seconds):
     return f"{n_hours}h{str(n_minutes).zfill(2)}m{str(n_seconds).zfill(2)}s"
 
 
-def uniquify(newfilepath):
+def uniquify(newfile_path):
     """
-    Appends a number ID to newfilepath if files with same name (but different ID) already exist
-    :param newfilepath (pathlib.Path): Full path to new file
+    Appends a number ID to newfile_path if files with same name (but different ID) already exist
+    :param newfile_path (pathlib.Path): Full path to new file
     """
+    assert isinstance(newfile_path, Path), f"newfile_path should be a pathlib.Path. Instead got {type(newfile_path)}"
     max_num = -1
-    for existing_file in newfilepath.parent.iterdir():
-        if newfilepath.stem in existing_file.stem and newfilepath.suffix == existing_file.suffix:
+    for existing_file in newfile_path.parent.iterdir():
+        if newfile_path.stem in existing_file.stem and newfile_path.suffix == existing_file.suffix:
             str_end = str(existing_file.stem).split('_')[-1]
             if str_end.isdigit():
                 num = int(str_end)
                 if num > max_num:
                     max_num = num
 
-    return newfilepath.parent / (newfilepath.stem + f"_{max_num + 1}" + newfilepath.suffix)
+    return newfile_path.parent / (newfile_path.stem + f"_{max_num + 1}" + newfile_path.suffix)
