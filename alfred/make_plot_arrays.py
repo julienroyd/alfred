@@ -41,7 +41,16 @@ def get_make_plots_args():
 
 def plot_definition_parser(to_parse):
     def_args = to_parse.split(',')
-    x_metric, y_metric, x_min, x_max, y_min, y_max = [convert_to_type_from_str(argument) for argument in def_args]
+    for i in range(len(def_args)):
+        def_args[i] = def_args[i].strip()
+        if i >= 2:
+            def_args[i] = def_args[i].lower()
+            if def_args[i] == "none":
+                def_args[i] = None
+            else:
+                def_args[i] = float(def_args[i])
+
+    x_metric, y_metric, x_min, x_max, y_min, y_max = def_args
     return (x_metric, y_metric, (x_min, x_max), (y_min, y_max))
 
 
