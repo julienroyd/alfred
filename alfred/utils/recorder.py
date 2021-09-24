@@ -1,3 +1,4 @@
+import copy
 import pickle
 import numpy as np
 import time
@@ -32,7 +33,7 @@ class Recorder(object):
 
         for key in self.tape.keys():
             if key in new_values_dict.keys():
-                self.tape[key].append(new_values_dict[key])
+                self.tape[key].append(copy.deepcopy(new_values_dict[key]))
             else:
                 self.tape[key].append(None)
 
