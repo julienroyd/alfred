@@ -27,7 +27,8 @@ class Recorder(object):
         """
 
         # new_values_dict is not allowed to contain un-initialised keys
-        assert all([key in self.tape.keys() for key in new_values_dict.keys()])
+        assert all([key in self.tape.keys() for key in new_values_dict.keys()]), \
+            f"self.tape.keys()={self.tape.keys()}\nnew_values_dict.keys()={new_values_dict.keys()}"
 
         for key in self.tape.keys():
             if key in new_values_dict.keys():
