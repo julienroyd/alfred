@@ -482,7 +482,7 @@ def _make_benchmark_learning_figure(x_data, y_data, x_metric, y_metric, y_error_
                 x_data[outer_key][inner_key] = x_data[outer_key][inner_key][0]  # assumes all x_data are the same
                 y_data_means[outer_key][inner_key] = np.stack(y_data[outer_key][inner_key], axis=-1).mean(-1)
                 y_data_err_up[outer_key][inner_key] = np.stack(y_data[outer_key][inner_key], axis=-1).std(-1) \
-                                                      / len(y_data_means[outer_key][inner_key]) ** 0.5
+                                                      / len(y_data[outer_key][inner_key]) ** 0.5
                 y_data_err_down = y_data_err_up
 
             elif y_error_bars == "bootstrapped_CI":
