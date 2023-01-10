@@ -18,10 +18,9 @@ from importlib import import_module
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from alfred.utils.directory_tree import DirectoryTree, get_root
+from alfred.utils.directory_tree import DirectoryTree
 from alfred.utils.config import save_dict_to_json, load_dict_from_json, save_config_to_json, config_to_str, parse_bool, validate_config_unique
-from alfred.utils.plots import plot_sampled_hyperparams
-from alfred.utils.misc import create_logger
+from alfred.utils.misc import create_logger, plot_sampled_hyperparams
 
 
 def get_prepare_schedule_args():
@@ -211,7 +210,7 @@ def prepare_schedule(desc, schedule_file, root_dir, add_to_folder, resample, log
         mode = "NEW_STORAGE"
 
     elif add_to_folder is not None:
-        assert (get_root(root_dir) / add_to_folder).exists(), f"{add_to_folder} does not exist."
+        assert (root_dir / add_to_folder).exists(), f"{add_to_folder} does not exist."
         assert desc is None, "If --add_to_folder is defined, new experiments will be added to the existing folder." \
                              "No --desc should be provided."
 
@@ -277,7 +276,7 @@ def prepare_schedule(desc, schedule_file, root_dir, add_to_folder, resample, log
                          f"{string}")
 
         else:
-            n_existing_experiments = len([path for path in get_root(root_dir) / add_to_folder.iterdir()
+            n_existing_experiments = len([path for path in root_dir / add_to_folder.iterdir()
                                           if path.name.startswith('experiment')])
 
             logger.debug(f"\n\nAbout to add {len(experiments)} experiment folders in the following directory"

@@ -28,7 +28,6 @@ import random
 from alfred.utils.config import load_config_from_json, parse_bool, parse_log_level
 from alfred.utils.directory_tree import *
 from alfred.utils.misc import create_logger, create_new_filehandler, select_storage_dirs, formatted_time_diff
-from alfred.make_plot_arrays import create_plot_arrays
 from alfred.clean_interrupted import clean_interrupted
 import alfred.defaults
 
@@ -139,39 +138,6 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
                         f.write(f'Error: {e}\n')
                         f.write(traceback.format_exc())
 
-            # If all experiments have been completed (or at least crashed but have been attempted)...
-
-            all_seeds = get_all_seeds(storage_dir)
-            unhatched_seeds = get_some_seeds(storage_dir, file_check='UNHATCHED')
-            crashed_seeds = get_some_seeds(storage_dir, file_check='CRASH.txt')
-            completed_seeds = get_some_seeds(storage_dir, file_check='COMPLETED')
-
-            if len(unhatched_seeds) == 0 and len(crashed_seeds) == 0 and len(completed_seeds) == len(all_seeds):
-
-                # Creates comparative plots
-
-                if not (storage_dir / 'PLOT_ARRAYS_ONGOING').exists() \
-                        and not (storage_dir / 'PLOT_ARRAYS_COMPLETED').exists():
-
-                    open(str(storage_dir / 'PLOT_ARRAYS_ONGOING'), 'w+').close()
-                    logger.info(f"{storage_dir} - MAKING COMPARATIVE PLOTS")
-
-                    try:
-                        create_plot_arrays(from_file=None,
-                                           storage_name=storage_dir.name,
-                                           root_dir=root_dir,
-                                           remove_none=True,
-                                           logger=logger,
-                                           plots_to_make=alfred.defaults.DEFAULT_PLOTS_ARRAYS_TO_MAKE)
-
-                        open(str(storage_dir / 'PLOT_ARRAYS_COMPLETED'), 'w+').close()
-
-                    except Exception as e:
-                        logger.info(f"{type(e)}: unable to plot comparative graphs"
-                                    f"\n\n{e}\n{traceback.format_exc()}")
-
-                    os.remove(str(storage_dir / 'PLOT_ARRAYS_ONGOING'))
-
             if call_i >= n_experiments_per_proc:
                 break
 
@@ -229,7 +195,7 @@ def launch_schedule(from_file, storage_name, n_processes, n_experiments_per_proc
                         f"\nn_experiments_per_proc={n_experiments_per_proc}"
                         f"\nuse_pbar={use_pbar}"
                         f"\ncheck_hash={check_hash}"
-                        f"\nroot={get_root(root_dir)}"
+                        f"\nroot={root_dir}"
                         f"\n")
 
     # Clean the storage_dirs if asked to

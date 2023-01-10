@@ -106,18 +106,6 @@ def clean_interrupted(from_file, storage_name, clean_crashes, ask_for_validation
         else:
             logger.info('No seed_dir to clean.')
 
-        # Clean flag-file
-
-        if (storage_dir / "PLOT_ARRAYS_ONGOING").exists():
-            os.remove(str(storage_dir / "PLOT_ARRAYS_ONGOING"))
-        if (storage_dir / "PLOT_ARRAYS_COMPLETED").exists():
-            os.remove(str(storage_dir / "PLOT_ARRAYS_COMPLETED"))
-
-        # Clean benchmark folder
-
-        if (storage_dir / "benchmark").exists():
-            shutil.rmtree(storage_dir / "benchmark")
-
 if __name__ == '__main__':
     kwargs = vars(get_clean_interrupted_args())
     logger = create_logger(name="CLEAN_INTERRUPTED - MAIN", loglevel=logging.INFO)
