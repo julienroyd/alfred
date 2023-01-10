@@ -9,8 +9,11 @@ import bootstrapped.bootstrap as bs
 import bootstrapped.stats_functions as bs_stats
 import numpy as np
 
+from matplotlib.ticker import MaxNLocator
+import matplotlib.pyplot as plt
+
 from alfred.utils.config import config_to_str
-from alfred.utils.directory_tree import DirectoryTree, get_root
+from alfred.utils.directory_tree import DirectoryTree
 
 COMMENTING_CHAR_LIST = ['#']
 
@@ -121,11 +124,11 @@ def select_storage_dirs(from_file, storage_name, root_dir):
         # drop the commented lignes in the .txt
         storage_names = [sto_name for sto_name in storage_names if not is_commented(sto_name, COMMENTING_CHAR_LIST)]
 
-        storage_dirs = [get_root(root_dir) / sto_name for sto_name in storage_names]
+        storage_dirs = [root_dir / sto_name for sto_name in storage_names]
 
     elif storage_name is not None:
 
-        storage_dirs = [get_root(root_dir) / storage_name]
+        storage_dirs = [root_dir / storage_name]
 
     else:
         raise NotImplementedError(
@@ -191,3 +194,19 @@ def get_95_confidence_interval_of_sequence(list_of_samples, method):
         err_ups.append(err_up)
         err_downs.append(err_down)
     return np.asarray(means), np.asarray(err_ups), np.asarray(err_downs)
+
+
+def plot_sampled_hyperparams(ax, param_samples, log_params):
+    cm = plt.cm.get_cmap('viridis')
+    for i, param in enumerate(param_samples.keys()):
+        args = param_samples[param], np.zeros_like(param_samples[param])
+        kwargs = {'linestyle': '', 'marker': 'o', 'label': param, 'alpha': 0.2,
+                  'color': cm(float(i) / float(len(param_samples)))}
+        if param in log_params:
+            ax[i].semilogx(*args, **kwargs)
+        else:
+            ax[i].plot(*args, **kwargs)
+            ax[i].xaxis.set_major_locator(MaxNLocator(integer=True))
+
+        ax[i].get_yaxis().set_ticks([])
+        ax[i].legend(loc='upper right')
