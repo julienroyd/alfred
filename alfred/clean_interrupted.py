@@ -113,11 +113,6 @@ def clean_interrupted(from_file, storage_name, clean_crashes, ask_for_validation
         if (storage_dir / "PLOT_ARRAYS_COMPLETED").exists():
             os.remove(str(storage_dir / "PLOT_ARRAYS_COMPLETED"))
 
-        # Clean summary folder
-
-        if (storage_dir / "summary").exists():
-            shutil.rmtree(storage_dir / "summary")
-
         # Clean benchmark folder
 
         if (storage_dir / "benchmark").exists():

@@ -165,7 +165,6 @@ The directory-tree used by alfred is defined in the class `alfred.utils.director
     |         └─── experiment3
     |         └─── experiment4
     |         └─── experiment5
-    |         └─── summary
     |         └─── eval_return_over_episodes.png
     |         └─── PLOT_ARRAYS_COMPLETED
     │    └─── Ju4_f7b375e-58332a7_sac_mountaincar_random_benchmarkv1
@@ -197,9 +196,3 @@ A seed-directory that does not contain any FLAG-file can be explained in two way
   2. The process running this config has been killed (e.g. by a cluster's slurm system) without having completed its task
 
 Such a seed-directory (containing no FLAG-file) will be identified as `MYSTERIOUSLY STOPPED` by `alfred.clean_interrupted.py` and will be cleaned to its initial state.
-
-#### FLAG-files for summaries
-
-Other flag files are used by `alfred.launch_schedule.py` to signal that a storage-directory is being summarised by a process, so that other process can move on to another storage-directory. These are:
-  * `PLOT_ARRAYS_ONGOING`, `PLOT_ARRAYS_COMPLETED`
-  * `SUMMARY_ONGOING`, `SUMMARY_COMPLETED`

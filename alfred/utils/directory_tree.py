@@ -13,8 +13,7 @@ class DirectoryTree(object):
     """
     DirectoryTree is meant to encapsulate the entire tree defined by a storage_dir
     - the storage_dir is located at directory_tree.root/.
-    - a storage_dir contains one or multiple experiment_dir as well as some other folders
-      such as benchmark/ and summary/ that compare the performance across all experiments.
+    - a storage_dir contains one or multiple experiment_dir
     - an experiment_dir contains one or multiple seed_dir. All seed_dirs in an experiment_dir
       share the same config.json except for the initialisation seed.
     - a seed_dir contains the config.json needed to launch an experiment, as well as
@@ -64,11 +63,6 @@ class DirectoryTree(object):
         # Level 1: storage_dir
 
         self.storage_dir = self.root / storage_name
-
-        # Level 1 leaves: summary_dir and benchmark_dir
-
-        self.summary_dir = self.storage_dir / 'summary'
-        self.benchmark_dir = self.storage_dir / 'benchmark'
 
         # Defines experiment number
 

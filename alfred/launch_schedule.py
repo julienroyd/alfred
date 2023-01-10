@@ -30,7 +30,6 @@ from alfred.utils.directory_tree import *
 from alfred.utils.misc import create_logger, create_new_filehandler, select_storage_dirs, formatted_time_diff
 from alfred.make_plot_arrays import create_plot_arrays
 from alfred.clean_interrupted import clean_interrupted
-from alfred.benchmark import summarize_search
 import alfred.defaults
 
 
@@ -172,40 +171,6 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
                                     f"\n\n{e}\n{traceback.format_exc()}")
 
                     os.remove(str(storage_dir / 'PLOT_ARRAYS_ONGOING'))
-
-                # If all experiments are completed benchmark them
-
-                if all_seeds == completed_seeds and not (storage_dir / "summary" / "SUMMARY_ONGOING").exists():
-
-                    if not (storage_dir / "summary" / "SUMMARY_ONGOING").exists() \
-                            and not (storage_dir / "summary" / "SUMMARY_COMPLETED").exists():
-                        os.makedirs(str(storage_dir / "summary"), exist_ok=True)
-                        open(str(storage_dir / "summary" / 'SUMMARY_ONGOING'), 'w+').close()
-                        logger.info(f"{storage_dir} - SUMMARIZING SEARCH")
-
-                        try:
-                            summarize_search(storage_name=storage_dir.name,
-                                             x_metric=alfred.defaults.DEFAULT_BENCHMARK_X_METRIC,
-                                             y_metric=alfred.defaults.DEFAULT_BENCHMARK_Y_METRIC,
-                                             y_error_bars="bootstrapped_CI",
-                                             n_eval_runs=None,
-                                             performance_metric=alfred.defaults.DEFAULT_BENCHMARK_PERFORMANCE_METRIC,
-                                             performance_aggregation="mean_on_last_20_percents",
-                                             re_run_if_exists=False,
-                                             make_performance_chart=True,
-                                             make_learning_plots=True,
-                                             logger=logger,
-                                             root_dir=root_dir)
-
-                            os.remove(str(storage_dir / "summary" / 'SUMMARY_ONGOING'))
-                            open(str(storage_dir / "summary" / 'SUMMARY_COMPLETED'), 'w+').close()
-
-                        except Exception as e:
-                            logger.info(f"{type(e)}: unable to run 'summarize_search'"
-                                        f"\n{e}\n{traceback.format_exc()}")
-
-                            os.remove(str(storage_dir / "summary" / 'SUMMARY_ONGOING'))
-                            open(str(storage_dir / "summary" / 'SUMMARY_FAILED'), 'w+').close()
 
             if call_i >= n_experiments_per_proc:
                 break
