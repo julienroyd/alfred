@@ -1,12 +1,7 @@
 import os
 import subprocess
 from pathlib import Path
-from collections import OrderedDict
 import alfred.defaults
-
-
-def get_root(root=None):
-    return Path(root) if root is not None else Path(DirectoryTree.default_root)
 
 
 class DirectoryTree(object):
@@ -19,12 +14,10 @@ class DirectoryTree(object):
     - a seed_dir contains the config.json needed to launch an experiment, as well as
       the result data saved in recorders/.
     """
-
-    default_root = alfred.defaults.DEFAULT_DIRECTORY_TREE_ROOT
     git_repos_to_track = alfred.defaults.DEFAULT_DIRECTORY_TREE_GIT_REPOS_TO_TRACK
 
-    def __init__(self, alg_name, task_name, desc, seed, experiment_num=None, git_hashes=None, id=None, root=None):
-        self.root = get_root(root)
+    def __init__(self, alg_name, task_name, desc, seed, root, experiment_num=None, git_hashes=None, id=None):
+        self.root = root
 
         # Creates the root folder (if doesn't already exist)
 
