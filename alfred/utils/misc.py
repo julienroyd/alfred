@@ -2,7 +2,6 @@ import logging
 import sys
 from math import floor, log10
 import re
-from tqdm import tqdm
 from pathlib import Path
 
 import bootstrapped.bootstrap as bs
@@ -64,8 +63,8 @@ def sorted_nicely(l):
     return sorted(l, key=alphanum_key)
 
 
-def create_management_objects(dir_tree, logger, pbar, config):
-    # Creates directory tres
+def create_management_objects(dir_tree, logger, config):
+    # Creates directory tree
 
     if dir_tree is None:
         dir_tree = DirectoryTree(alg_name=config.alg_name,
@@ -82,17 +81,7 @@ def create_management_objects(dir_tree, logger, pbar, config):
         logger = create_logger('MASTER', config.log_level, dir_tree.seed_dir / 'logger.out')
     logger.debug(config_to_str(config))
 
-    # Creates a progress-bar
-
-    if pbar == "default_pbar":
-        pbar = tqdm()
-
-    if pbar is not None:
-        pbar.n = 0
-        pbar.desc += f'{dir_tree.storage_dir.name}/{dir_tree.experiment_dir.name}/{dir_tree.seed_dir.name}'
-        pbar.total = config.max_episodes
-
-    return dir_tree, logger, pbar
+    return dir_tree, logger
 
 
 def check_params_defined_twice(keys):

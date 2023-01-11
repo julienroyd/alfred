@@ -68,7 +68,7 @@ There are some structural requirements that `alfred` expects in order to be able
 
   1. a file called `main.py`
   2. a function `main.get_run_args(overwritten_cmd_line)` that defines the hyperparameters for this project
-  3. a function `main.main(config, dir_tree, logger, pbar)` that launches an experiment with the specified hyperparameters
+  3. a function `main.main(config, dir_tree, logger)` that launches an experiment with the specified hyperparameters
   4. a folder named `schedules`. A schedule is just a folder that contains everything that defines a hyperparameter-search, mainly, its schedule_file (e.g. `random_schedule_mySearch.py`) but also text files listing which result directories belong to that search, json files for defining some markers, colors and labels for the algorithms in the search, etc. See `alfred/schedule_examples/`.
   5. [OPTIONAL] a function `main.set_up_alfred()` which sets the default values used by alfred (see in alfred/defaults.py)
 
