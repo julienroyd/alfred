@@ -96,6 +96,9 @@ def is_commented(str_line, commenting_char_list):
 
 
 def select_storage_dirs(from_file, storage_name, root_dir):
+    if type(root_dir) != Path:
+        root_dir = Path(root_dir)
+    
     if from_file is not None:
         assert storage_name is None, "If launching --from_file, no storage_name should be provided"
         assert Path(from_file).suffix == '.txt', f"The provided --from_file should be a text file listing " \

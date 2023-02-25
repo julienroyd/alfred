@@ -17,7 +17,7 @@ class DirectoryTree(object):
     git_repos_to_track = alfred.defaults.DEFAULT_DIRECTORY_TREE_GIT_REPOS_TO_TRACK
 
     def __init__(self, alg_name, task_name, desc, seed, root, experiment_num=None, git_hashes=None, id=None):
-        self.root = root
+        self.root = Path(root)
 
         # Creates the root folder (if doesn't already exist)
 
