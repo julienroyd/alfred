@@ -121,10 +121,8 @@ The directory-tree used by alfred is defined in the class `alfred.utils.director
     |                   └─── config_unique.json
     |                   └─── COMPLETED
     |                   └─── logger.out
-    |                   └─── graph.png
-    |                   └─── recorders
-    |                        └─── train_recorder.pkl
-    |                        └─── other_data.pkl
+    |                   └─── model.pt
+    |                   └─── metrics.pkl
     |              └─── seed789
     |                   └─── config.json
     |                   └─── config_unique.json
