@@ -3,7 +3,7 @@
 
 # ASSUMPTION: this module (alfred) assumes that the directory from which it is called contains:
 # 1. a file named 'main.py'
-# 2. a function 'main.main(config, dir_tree, logger, pbar)' that runs the project with the specified hyperparameters
+# 2. a function 'main.main(config, dir_tree, logger)' that runs the project with the specified hyperparameters
 try:  # TODO: update this description
     from main import main, set_up_alfred
 except ImportError as e:
@@ -11,7 +11,7 @@ except ImportError as e:
         f"{e.msg}\n"
         f"alfred.prepare_schedule assumes the following structure:"
         f"\n\t1. a file named 'main.py'"
-        f"\n\t2. a function 'main.main(config, dir_tree, logger, pbar)' that runs the project with the specified hyperparameters"
+        f"\n\t2. a function 'main.main(config, dir_tree, logger)' that runs the project with the specified hyperparameters"
     )
 
 # other imports
@@ -22,15 +22,12 @@ import argparse
 from multiprocessing import Process
 import time
 import logging
-from tqdm import tqdm
 import random
 
 from alfred.utils.config import load_config_from_json, parse_bool, parse_log_level
 from alfred.utils.directory_tree import *
 from alfred.utils.misc import create_logger, create_new_filehandler, select_storage_dirs, formatted_time_diff
-from alfred.make_plot_arrays import create_plot_arrays
 from alfred.clean_interrupted import clean_interrupted
-from alfred.benchmark import summarize_search
 import alfred.defaults
 
 
@@ -45,7 +42,6 @@ def get_launch_schedule_args():
 
     parser.add_argument('--n_processes', type=int, default=1)
     parser.add_argument('--n_experiments_per_proc', type=int, default=np.inf)
-    parser.add_argument('--use_pbar', type=parse_bool, default=False)
     parser.add_argument('--check_hash', type=parse_bool, default=True)
     parser.add_argument('--run_clean_interrupted', type=parse_bool, default=False,
                         help="Will clean mysteriously stopped seeds to be re-runned, but not crashed experiments")
@@ -56,7 +52,7 @@ def get_launch_schedule_args():
     return parser.parse_args()
 
 
-def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pbar, logger, root_dir, process_i=0):
+def _work_on_schedule(storage_dirs, n_experiments_per_proc, logger, root_dir, process_i=0):
     call_i = 0
 
     try:
@@ -112,18 +108,12 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
                              f'{dir_tree.seed_dir.name}',
                         loglevel=logging.INFO,
                         logfile=dir_tree.seed_dir / 'logger.out',
-                        streamHandle=not (use_pbar)
+                        streamHandle=True
                     )
-
-                    if use_pbar:
-                        pbar = tqdm(position=process_i + (1 + n_processes) * call_i)
-                        pbar.desc = f"PROCESS{process_i}:"
-                    else:
-                        pbar = None
 
                     logger.info(f"{seed_dir} - Launching...")
 
-                    main(config=config, dir_tree=dir_tree, logger=experiment_logger, pbar=pbar)
+                    main(config=config, dir_tree=dir_tree, logger=experiment_logger)
 
                     open(str(seed_dir / 'COMPLETED'), 'w+').close()
                     call_i += 1
@@ -140,73 +130,6 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
                         f.write(f'Error: {e}\n')
                         f.write(traceback.format_exc())
 
-            # If all experiments have been completed (or at least crashed but have been attempted)...
-
-            all_seeds = get_all_seeds(storage_dir)
-            unhatched_seeds = get_some_seeds(storage_dir, file_check='UNHATCHED')
-            crashed_seeds = get_some_seeds(storage_dir, file_check='CRASH.txt')
-            completed_seeds = get_some_seeds(storage_dir, file_check='COMPLETED')
-
-            if len(unhatched_seeds) == 0 and len(crashed_seeds) == 0 and len(completed_seeds) == len(all_seeds):
-
-                # Creates comparative plots
-
-                if not (storage_dir / 'PLOT_ARRAYS_ONGOING').exists() \
-                        and not (storage_dir / 'PLOT_ARRAYS_COMPLETED').exists():
-
-                    open(str(storage_dir / 'PLOT_ARRAYS_ONGOING'), 'w+').close()
-                    logger.info(f"{storage_dir} - MAKING COMPARATIVE PLOTS")
-
-                    try:
-                        create_plot_arrays(from_file=None,
-                                           storage_name=storage_dir.name,
-                                           root_dir=root_dir,
-                                           remove_none=True,
-                                           logger=logger,
-                                           plots_to_make=alfred.defaults.DEFAULT_PLOTS_ARRAYS_TO_MAKE)
-
-                        open(str(storage_dir / 'PLOT_ARRAYS_COMPLETED'), 'w+').close()
-
-                    except Exception as e:
-                        logger.info(f"{type(e)}: unable to plot comparative graphs"
-                                    f"\n\n{e}\n{traceback.format_exc()}")
-
-                    os.remove(str(storage_dir / 'PLOT_ARRAYS_ONGOING'))
-
-                # If all experiments are completed benchmark them
-
-                if all_seeds == completed_seeds and not (storage_dir / "summary" / "SUMMARY_ONGOING").exists():
-
-                    if not (storage_dir / "summary" / "SUMMARY_ONGOING").exists() \
-                            and not (storage_dir / "summary" / "SUMMARY_COMPLETED").exists():
-                        os.makedirs(str(storage_dir / "summary"), exist_ok=True)
-                        open(str(storage_dir / "summary" / 'SUMMARY_ONGOING'), 'w+').close()
-                        logger.info(f"{storage_dir} - SUMMARIZING SEARCH")
-
-                        try:
-                            summarize_search(storage_name=storage_dir.name,
-                                             x_metric=alfred.defaults.DEFAULT_BENCHMARK_X_METRIC,
-                                             y_metric=alfred.defaults.DEFAULT_BENCHMARK_Y_METRIC,
-                                             y_error_bars="bootstrapped_CI",
-                                             n_eval_runs=None,
-                                             performance_metric=alfred.defaults.DEFAULT_BENCHMARK_PERFORMANCE_METRIC,
-                                             performance_aggregation="mean_on_last_20_percents",
-                                             re_run_if_exists=False,
-                                             make_performance_chart=True,
-                                             make_learning_plots=True,
-                                             logger=logger,
-                                             root_dir=root_dir)
-
-                            os.remove(str(storage_dir / "summary" / 'SUMMARY_ONGOING'))
-                            open(str(storage_dir / "summary" / 'SUMMARY_COMPLETED'), 'w+').close()
-
-                        except Exception as e:
-                            logger.info(f"{type(e)}: unable to run 'summarize_search'"
-                                        f"\n{e}\n{traceback.format_exc()}")
-
-                            os.remove(str(storage_dir / "summary" / 'SUMMARY_ONGOING'))
-                            open(str(storage_dir / "summary" / 'SUMMARY_FAILED'), 'w+').close()
-
             if call_i >= n_experiments_per_proc:
                 break
 
@@ -218,7 +141,7 @@ def _work_on_schedule(storage_dirs, n_processes, n_experiments_per_proc, use_pba
     return call_i
 
 
-def launch_schedule(from_file, storage_name, n_processes, n_experiments_per_proc, use_pbar, check_hash,
+def launch_schedule(from_file, storage_name, n_processes, n_experiments_per_proc, check_hash,
                     run_clean_interrupted, root_dir, log_level):
     set_up_alfred()
 
@@ -262,9 +185,8 @@ def launch_schedule(from_file, storage_name, n_processes, n_experiments_per_proc
                         f"\nstorage_name={storage_name}"
                         f"\nn_processes={n_processes}"
                         f"\nn_experiments_per_proc={n_experiments_per_proc}"
-                        f"\nuse_pbar={use_pbar}"
                         f"\ncheck_hash={check_hash}"
-                        f"\nroot={get_root(root_dir)}"
+                        f"\nroot={root_dir}"
                         f"\n")
 
     # Clean the storage_dirs if asked to
@@ -306,9 +228,7 @@ def launch_schedule(from_file, storage_name, n_processes, n_experiments_per_proc
             # Creates process
 
             processes.append(Process(target=_work_on_schedule, args=(storage_dirs,
-                                                                     n_processes,
                                                                      n_experiments_per_proc,
-                                                                     use_pbar,
                                                                      logger,
                                                                      root_dir,
                                                                      i)))
@@ -347,9 +267,7 @@ def launch_schedule(from_file, storage_name, n_processes, n_experiments_per_proc
 
     else:
         n_calls = _work_on_schedule(storage_dirs=storage_dirs,
-                                    n_processes=n_processes,
                                     n_experiments_per_proc=n_experiments_per_proc,
-                                    use_pbar=use_pbar,
                                     logger=master_logger,
                                     root_dir=root_dir)
 

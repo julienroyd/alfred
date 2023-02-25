@@ -31,9 +31,7 @@ def sync_wandb(root_dir, tag, ask_for_validation, project, entity, logger):
 
     # Select the root dir
 
-    root = get_root(root_dir)
-
-    child_dirs = [child for child in root.iterdir() if tag in child.name]
+    child_dirs = [child for child in root_dir.iterdir() if tag in child.name]
 
     info_string = f"Folders to be synced to {entity}\{project}: \n"
 

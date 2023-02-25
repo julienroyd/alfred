@@ -17,9 +17,6 @@ To make using alfred as seamless as possible, add the followings to your `.bachr
 alias alprep='python -m alfred.prepare_schedule'
 alias allaunch='python -m alfred.launch_schedule'
 alias alclean='python -m alfred.clean_interrupted'
-alias alplot='python -m alfred.make_plot_arrays'
-alias alretrain='python -m alfred.create_retrainbest'
-alias albench='python -m alfred.benchmark'
 alias alsync='python -m alfred.sync_wandb'
 alias alcopy='python -m alfred.copy_config'
 alias alupdate='python -m alfred.update_config_unique'
@@ -30,12 +27,9 @@ alias alupdate='python -m alfred.update_config_unique'
     ├─── alfred
     │
     |    └─── defaults.py
-    │    └─── benchmark.py
     │    └─── clean_interrupted.py
     │    └─── copy_config.py
-    │    └─── create_retrainbest.py
     │    └─── launch_schedule.py
-    │    └─── make_plot_arrays.py
     │    └─── prepare_schedule.py
     │    └─── synch_wandb.py
     │
@@ -51,14 +45,12 @@ alias alupdate='python -m alfred.update_config_unique'
     │         └─── config.py
     │         └─── directory_tree.py
     │         └─── misc.py
-    │         └─── plots.py
     │         └─── recorder.py
-    │         └─── stats.py
 
 This repository contains two different group of files: 
 
 * Experiment management scripts directly under `alfred`. They are meant to help manage folder creation, experiment launching and results aggregation. See next section for usage. We refer to them as << alfred's scripts >>.
-* Common functions for plots, directory trees, loggers, argparsers and the like, located under `alfred.utils`. We refer to them as << alfred's utils >>.
+* Common functions for directory trees, loggers, argparsers and the like, located under `alfred.utils`. We refer to them as << alfred's utils >>.
 * Some important default configurations are defined in `alfred.defaults.py` as global variables and can be overwritten on the ML side by simply reassigning them inside a function called `main.set_up_alfred()`.
 
 
@@ -76,7 +68,7 @@ There are some structural requirements that `alfred` expects in order to be able
 
   1. a file called `main.py`
   2. a function `main.get_run_args(overwritten_cmd_line)` that defines the hyperparameters for this project
-  3. a function `main.main(config, dir_tree, logger, pbar)` that launches an experiment with the specified hyperparameters
+  3. a function `main.main(config, dir_tree, logger)` that launches an experiment with the specified hyperparameters
   4. a folder named `schedules`. A schedule is just a folder that contains everything that defines a hyperparameter-search, mainly, its schedule_file (e.g. `random_schedule_mySearch.py`) but also text files listing which result directories belong to that search, json files for defining some markers, colors and labels for the algorithms in the search, etc. See `alfred/schedule_examples/`.
   5. [OPTIONAL] a function `main.set_up_alfred()` which sets the default values used by alfred (see in alfred/defaults.py)
 
@@ -101,30 +93,6 @@ python -m alfred.prepare_schedule --schedule_file=schedules/benchmarkExample/ran
 
 ```
 python -m alfred.launch_schedule --from_file schedules/benchmarkExample/list_searches_benchmarkExample.txt
-```
-
-**3. Create the folders to retrain the best configuration from the search:**
-
-```
-python -m alfred.create_retrainbest --from_file schedules/benchmarkExample/list_searches_benchmarkExample.txt
-```
-
-**4. Launch the retrainbest:**
-
-```
-python -m alfred.launch_schedule --from_file schedules/benchmarkExample/list_retrains_benchmarkExample.txt
-```
-
-**5. Benchmark the searches:**
-```
-python -m alfred.benchmark --from_file schedules/benchmarkExample/list_searches_benchmarkExample.txt 
-                           --benchmark_type compare_searches
-```
-
-**6. Benchmark the retrains:**
-```
-python -m alfred.benchmark --from_file schedules/benchmarkExample/list_retrains_benchmarkExample.txt 
-                           --benchmark_type compare_models
 ```
 
 ## Key mechanisms used by alfred
@@ -165,9 +133,7 @@ The directory-tree used by alfred is defined in the class `alfred.utils.director
     |         └─── experiment3
     |         └─── experiment4
     |         └─── experiment5
-    |         └─── summary
     |         └─── eval_return_over_episodes.png
-    |         └─── PLOT_ARRAYS_COMPLETED
     │    └─── Ju4_f7b375e-58332a7_sac_mountaincar_random_benchmarkv1
 ```
 The whole directory-tree is a result of `alfred.prepare_schedule`. It uses a file defining your search and creates the experiment directories accordingly (see `alfred/schedules_examples` for an example of such files).
@@ -197,9 +163,3 @@ A seed-directory that does not contain any FLAG-file can be explained in two way
   2. The process running this config has been killed (e.g. by a cluster's slurm system) without having completed its task
 
 Such a seed-directory (containing no FLAG-file) will be identified as `MYSTERIOUSLY STOPPED` by `alfred.clean_interrupted.py` and will be cleaned to its initial state.
-
-#### FLAG-files for summaries
-
-Other flag files are used by `alfred.launch_schedule.py` to signal that a storage-directory is being summarised by a process, so that other process can move on to another storage-directory. These are:
-  * `PLOT_ARRAYS_ONGOING`, `PLOT_ARRAYS_COMPLETED`
-  * `SUMMARY_ONGOING`, `SUMMARY_COMPLETED`

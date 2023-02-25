@@ -2,11 +2,17 @@ import logging
 import sys
 from math import floor, log10
 import re
-from tqdm import tqdm
 from pathlib import Path
 
+import bootstrapped.bootstrap as bs
+import bootstrapped.stats_functions as bs_stats
+import numpy as np
+
+from matplotlib.ticker import MaxNLocator
+import matplotlib.pyplot as plt
+
 from alfred.utils.config import config_to_str
-from alfred.utils.directory_tree import DirectoryTree, get_root
+from alfred.utils.directory_tree import DirectoryTree
 
 COMMENTING_CHAR_LIST = ['#']
 
@@ -57,8 +63,8 @@ def sorted_nicely(l):
     return sorted(l, key=alphanum_key)
 
 
-def create_management_objects(dir_tree, logger, pbar, config):
-    # Creates directory tres
+def create_management_objects(dir_tree, logger, config):
+    # Creates directory tree
 
     if dir_tree is None:
         dir_tree = DirectoryTree(alg_name=config.alg_name,
@@ -75,17 +81,7 @@ def create_management_objects(dir_tree, logger, pbar, config):
         logger = create_logger('MASTER', config.log_level, dir_tree.seed_dir / 'logger.out')
     logger.debug(config_to_str(config))
 
-    # Creates a progress-bar
-
-    if pbar == "default_pbar":
-        pbar = tqdm()
-
-    if pbar is not None:
-        pbar.n = 0
-        pbar.desc += f'{dir_tree.storage_dir.name}/{dir_tree.experiment_dir.name}/{dir_tree.seed_dir.name}'
-        pbar.total = config.max_episodes
-
-    return dir_tree, logger, pbar
+    return dir_tree, logger
 
 
 def check_params_defined_twice(keys):
@@ -100,6 +96,9 @@ def is_commented(str_line, commenting_char_list):
 
 
 def select_storage_dirs(from_file, storage_name, root_dir):
+    if type(root_dir) != Path:
+        root_dir = Path(root_dir)
+    
     if from_file is not None:
         assert storage_name is None, "If launching --from_file, no storage_name should be provided"
         assert Path(from_file).suffix == '.txt', f"The provided --from_file should be a text file listing " \
@@ -117,11 +116,11 @@ def select_storage_dirs(from_file, storage_name, root_dir):
         # drop the commented lignes in the .txt
         storage_names = [sto_name for sto_name in storage_names if not is_commented(sto_name, COMMENTING_CHAR_LIST)]
 
-        storage_dirs = [get_root(root_dir) / sto_name for sto_name in storage_names]
+        storage_dirs = [root_dir / sto_name for sto_name in storage_names]
 
     elif storage_name is not None:
 
-        storage_dirs = [get_root(root_dir) / storage_name]
+        storage_dirs = [root_dir / storage_name]
 
     else:
         raise NotImplementedError(
@@ -153,3 +152,53 @@ def uniquify(newfile_path):
                     max_num = num
 
     return newfile_path.parent / (newfile_path.stem + f"_{max_num + 1}" + newfile_path.suffix)
+
+
+def get_95_confidence_interval(samples, method):
+    if method == "stderr":
+        mean = samples.mean(-1)
+        number_of_samples = len(samples)
+        samples_std = samples.std(-1)
+        samples_stderr = 1.96 * samples_std / (number_of_samples ** 0.5)
+        err_up = samples_stderr
+        err_down = samples_stderr
+
+    elif method == "bootstrapped_CI":
+        bootstrapped_result = bs.bootstrap(samples, stat_func=bs_stats.mean)
+        mean = bootstrapped_result.value
+        err_up = bootstrapped_result.upper_bound - bootstrapped_result.value
+        err_down = bootstrapped_result.value - bootstrapped_result.lower_bound
+
+    else:
+        raise NotImplementedError(method)
+
+    return mean, err_up, err_down
+
+
+def get_95_confidence_interval_of_sequence(list_of_samples, method):
+    # list_of_samples must be of shape (n_time_steps, n_samples)
+    means = []
+    err_ups = []
+    err_downs = []
+    for samples in list_of_samples:
+        mean, err_up, err_down = get_95_confidence_interval(samples=samples, method=method)
+        means.append(mean)
+        err_ups.append(err_up)
+        err_downs.append(err_down)
+    return np.asarray(means), np.asarray(err_ups), np.asarray(err_downs)
+
+
+def plot_sampled_hyperparams(ax, param_samples, log_params):
+    cm = plt.cm.get_cmap('viridis')
+    for i, param in enumerate(param_samples.keys()):
+        args = param_samples[param], np.zeros_like(param_samples[param])
+        kwargs = {'linestyle': '', 'marker': 'o', 'label': param, 'alpha': 0.2,
+                  'color': cm(float(i) / float(len(param_samples)))}
+        if param in log_params:
+            ax[i].semilogx(*args, **kwargs)
+        else:
+            ax[i].plot(*args, **kwargs)
+            ax[i].xaxis.set_major_locator(MaxNLocator(integer=True))
+
+        ax[i].get_yaxis().set_ticks([])
+        ax[i].legend(loc='upper right')
