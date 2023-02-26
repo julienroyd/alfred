@@ -160,4 +160,4 @@ A seed-directory that does not contain any FLAG-file can be explained in two way
   1. It is currently being runned (a process is executing this config and hasn't finished yet)
   2. The process running this config has been killed (e.g. by a cluster's slurm system) without having completed its task
 
-Such a seed-directory (containing no FLAG-file) will be identified as `MYSTERIOUSLY STOPPED` by `alfred.clean_interrupted.py` and will be cleaned to its initial state.
+Such a seed-directory (containing no FLAG-file) will be identified as `OPENED` by `alfred.clean_interrupted.py` and will be cleaned to its initial state.
