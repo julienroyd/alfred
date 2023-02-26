@@ -11,8 +11,8 @@ class DirectoryTree(object):
     - a storage_dir contains one or multiple experiment_dir
     - an experiment_dir contains one or multiple seed_dir. All seed_dirs in an experiment_dir
       share the same config.json except for the initialisation seed.
-    - a seed_dir contains the config.json needed to launch an experiment, as well as
-      the result data saved in recorders/.
+    - a seed_dir contains the config.json needed to launch a training run, the 
+        recorded metrics and the saved models.
     """
     git_repos_to_track = alfred.defaults.DEFAULT_DIRECTORY_TREE_GIT_REPOS_TO_TRACK
 
@@ -80,11 +80,6 @@ class DirectoryTree(object):
         # Level 3: seed_dir
 
         self.seed_dir = self.experiment_dir / f"seed{seed}"
-
-        # Level 3 leaves: recorders_dir and incrementals_dir
-
-        self.recorders_dir = self.seed_dir / 'recorders'
-        self.incrementals_dir = self.seed_dir / 'incrementals'
 
     def create_directories(self):
         os.makedirs(str(self.seed_dir))

@@ -44,7 +44,7 @@ def get_launch_schedule_args():
     parser.add_argument('--n_experiments_per_proc', type=int, default=np.inf)
     parser.add_argument('--check_hash', type=parse_bool, default=True)
     parser.add_argument('--run_clean_interrupted', type=parse_bool, default=False,
-                        help="Will clean mysteriously stopped seeds to be re-runned, but not crashed experiments")
+                        help="Will clean opened seeds to be re-runned, but not crashed experiments")
 
     parser.add_argument('--root_dir', default=None, type=str)
     parser.add_argument("--log_level", default=logging.INFO, type=parse_log_level)

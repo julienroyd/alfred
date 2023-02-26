@@ -39,10 +39,10 @@ def clean_interrupted(from_file, storage_name, clean_crashes, ask_for_validation
         unhatched_seeds = get_some_seeds(storage_dir, file_check='UNHATCHED')
         completed_seeds = get_some_seeds(storage_dir, file_check='COMPLETED')
         crashed_seeds = get_some_seeds(storage_dir, file_check='CRASH.txt')
-        mysteriously_stopped_seeds = [seed_dir for seed_dir in all_seeds
+        other_seeds = [seed_dir for seed_dir in all_seeds
                                       if seed_dir not in unhatched_seeds + completed_seeds + crashed_seeds]
 
-        assert all([seed_dir in unhatched_seeds + completed_seeds + crashed_seeds + mysteriously_stopped_seeds
+        assert all([seed_dir in unhatched_seeds + completed_seeds + crashed_seeds + other_seeds
                     for seed_dir in all_seeds])
 
         # Prints some info
@@ -52,7 +52,7 @@ def clean_interrupted(from_file, storage_name, clean_crashes, ask_for_validation
                     f"\nNumber of seeds COMPLETED = {len(completed_seeds)}"
                     f"\nNumber of seeds UNHATCHED = {len(unhatched_seeds)}"
                     f"\nNumber of seeds CRASHED = {len(crashed_seeds)}"
-                    f"\nNumber of seeds MYSTERIOUSLY STOPPED = {len(mysteriously_stopped_seeds)}"
+                    f"\nNumber of seeds OPENED = {len(other_seeds)}"
                     f"\n\nclean_crashes={clean_crashes}"
                     f"\n"
                     )
