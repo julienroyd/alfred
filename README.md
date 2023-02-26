@@ -69,10 +69,9 @@ There are some structural requirements that `alfred` expects in order to be able
   1. a file called `main.py`
   2. a function `main.get_run_args(overwritten_cmd_line)` that defines the hyperparameters for this project
   3. a function `main.main(config, dir_tree, logger)` that launches an experiment with the specified hyperparameters
-  4. a folder named `schedules`. A schedule is just a folder that contains everything that defines a hyperparameter-search, mainly, its schedule_file (e.g. `random_schedule_mySearch.py`) but also text files listing which result directories belong to that search, json files for defining some markers, colors and labels for the algorithms in the search, etc. See `alfred/schedule_examples/`.
-  5. [OPTIONAL] a function `main.set_up_alfred()` which sets the default values used by alfred (see in alfred/defaults.py)
+  4. [OPTIONAL] a function `main.set_up_alfred()` which sets the default values used by alfred (see in alfred/defaults.py)
 
-That being in place, you can use alfred's scripts to prepare, launch, clean these hyperparameter searches. To use any of the scripts, simply call it from `my_ml_project`. For example:
+That being in place, you can use alfred's scripts to prepare, launch and clean these hyperparameter searches. To use any of the scripts, simply call it from `my_ml_project`. For example:
 
 > python -m alfred.prepare_schedule --schedule_file=schedules/gridSearchExample/grid_schedule_gridSearchExample.py --desc=abc
 
@@ -85,7 +84,8 @@ For a description of their purpose and their arguments, please refer to the help
 **1. Create the search folders:**
 
 ```
-python -m alfred.prepare_schedule --schedule_file=schedules/benchmarkExample/random_schedule_benchmarkExample.py 
+python -m alfred.prepare_schedule --schedule_file=schedules/benchmarkExample/random_schedule_benchmarkExample.py
+                                  --root_dir=scratch/benchmarkExample 
                                   --desc benchmarkExample
 ```
 
@@ -93,11 +93,12 @@ python -m alfred.prepare_schedule --schedule_file=schedules/benchmarkExample/ran
 
 ```
 python -m alfred.launch_schedule --from_file schedules/benchmarkExample/list_searches_benchmarkExample.txt
+                                 --root_dir=scratch/benchmarkExample
 ```
 
 ## Key mechanisms used by alfred
 
-The spirit of this codebase is to have project-agnostic scripts that can be called from anywhere, to create folders, launch experiments in parallel and communicate asynchronously through FLAG-files in order to know which experiments are completed, which ones are left to run and which ones have crashed. This framework uses the fact that the directory-tree is known from `alfred` (see `alfred.utils.directory_tree.py`). 
+The spirit of this codebase is to have project-agnostic scripts launch experiments in parallel and communicate asynchronously through FLAG-files in order to know which experiments are completed, which ones are left to run and which ones have crashed and need to be cleaned-up and re-launched. This framework uses the fact that the directory-tree is known from `alfred` (see `alfred.utils.directory_tree.py`). 
 
 ### Directory Tree
 
@@ -122,9 +123,8 @@ The directory-tree used by alfred is defined in the class `alfred.utils.director
     |                   └─── COMPLETED
     |                   └─── logger.out
     |                   └─── graph.png
-    |                   └─── recorders
-    |                        └─── train_recorder.pkl
-    |                        └─── other_data.pkl
+    |                   └─── metrics.pkl
+    |                   └─── model.pt
     |              └─── seed789
     |                   └─── config.json
     |                   └─── config_unique.json
@@ -153,7 +153,7 @@ The whole directory-tree is a result of `alfred.prepare_schedule`. It uses a fil
 
 #### FLAG-files for seed-directories
 
-There are two main flag files present in seed-directories: 
+There are three main flag files present in seed-directories: 
   * `UNHATCHED`: signals that this run has not been launched yet
   * `COMPLETED`: signals that this run has reached termination without crash
   * `CRASH.txt`: signals that the run from this config has crashed and contains the error message
@@ -162,4 +162,4 @@ A seed-directory that does not contain any FLAG-file can be explained in two way
   1. It is currently being runned (a process is executing this config and hasn't finished yet)
   2. The process running this config has been killed (e.g. by a cluster's slurm system) without having completed its task
 
-Such a seed-directory (containing no FLAG-file) will be identified as `MYSTERIOUSLY STOPPED` by `alfred.clean_interrupted.py` and will be cleaned to its initial state.
+Such a seed-directory (containing no FLAG-file) will be identified as `OPENED` by `alfred.clean_interrupted.py` and will be cleaned to its initial state.
