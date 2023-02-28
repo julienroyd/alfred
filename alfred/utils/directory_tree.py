@@ -163,8 +163,8 @@ class DirectoryTree(object):
         return git_hashes
 
 
-def get_some_seeds(storage_dir, file_check='UNHATCHED'):
-    # Finds all seed directories containing an UNHATCHED file and sorts them numerically
+def get_some_seeds(storage_dir, file_check):
+    # Finds all seed directories containing a file named file_check and sorts them numerically
 
     sorted_experiments = DirectoryTree.get_all_experiments(storage_dir)
 

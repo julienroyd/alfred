@@ -1,10 +1,11 @@
-from alfred.utils.directory_tree import *
+from alfred.utils.directory_tree import get_some_seeds, get_all_seeds, sanity_check_exists
 from alfred.utils.misc import create_logger, select_storage_dirs
 from alfred.utils.config import parse_bool
 
 import argparse
 import logging
 import shutil
+import os
 
 
 def get_clean_interrupted_args():
@@ -37,22 +38,20 @@ def clean_interrupted(from_file, storage_name, clean_crashes, ask_for_validation
 
         all_seeds = get_all_seeds(storage_dir)
         unhatched_seeds = get_some_seeds(storage_dir, file_check='UNHATCHED')
+        opened_seeds = get_some_seeds(storage_dir, file_check='OPENED')
         completed_seeds = get_some_seeds(storage_dir, file_check='COMPLETED')
         crashed_seeds = get_some_seeds(storage_dir, file_check='CRASH.txt')
-        other_seeds = [seed_dir for seed_dir in all_seeds
-                                      if seed_dir not in unhatched_seeds + completed_seeds + crashed_seeds]
-
-        assert all([seed_dir in unhatched_seeds + completed_seeds + crashed_seeds + other_seeds
-                    for seed_dir in all_seeds])
+        assert set(all_seeds) == set(unhatched_seeds + opened_seeds + completed_seeds + crashed_seeds)
 
         # Prints some info
 
         logger.info(f"All seed_dir status in {storage_dir}:\n"
-                    f"\nNumber of seeds = {len(all_seeds)}"
-                    f"\nNumber of seeds COMPLETED = {len(completed_seeds)}"
-                    f"\nNumber of seeds UNHATCHED = {len(unhatched_seeds)}"
-                    f"\nNumber of seeds CRASHED = {len(crashed_seeds)}"
-                    f"\nNumber of seeds OPENED = {len(other_seeds)}"
+                    f"\nNumber of seeds:\t\t{len(all_seeds)}"
+                    f"\n{'-'*30}"
+                    f"\nNumber of seeds UNHATCHED:\t{len(unhatched_seeds)}"
+                    f"\nNumber of seeds OPENED: \t{len(opened_seeds)}"
+                    f"\nNumber of seeds CRASHED:\t{len(crashed_seeds)}"
+                    f"\nNumber of seeds COMPLETED:\t{len(completed_seeds)}"
                     f"\n\nclean_crashes={clean_crashes}"
                     f"\n"
                     )
@@ -67,12 +66,6 @@ def clean_interrupted(from_file, storage_name, clean_crashes, ask_for_validation
                 continue
 
             logger.debug("Starting...")
-
-        # Lists of crashes, completed and unhatched seeds should have no overlap
-
-        assert not any([seed_dir in crashed_seeds for seed_dir in unhatched_seeds])
-        assert not any([seed_dir in crashed_seeds for seed_dir in completed_seeds])
-        assert not any([seed_dir in completed_seeds for seed_dir in unhatched_seeds])
 
         # Check what should be cleaned
 
@@ -101,7 +94,7 @@ def clean_interrupted(from_file, storage_name, clean_crashes, ask_for_validation
                         continue
 
                 open(str(seed_dir / 'UNHATCHED'), 'w+').close()
-            logger.info(f'Done')
+            logger.info('Done')
 
         else:
             logger.info('No seed_dir to clean.')

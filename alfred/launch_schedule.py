@@ -95,6 +95,8 @@ def _work_on_schedule(storage_dirs, n_experiments_per_proc, logger, root_dir, pr
                     logger.info(f"{seed_dir} - Already hatched")
                     continue
 
+                open(str(seed_dir / 'OPENED'), 'w+').close()
+
                 # Load the config and try to train the model
 
                 try:
