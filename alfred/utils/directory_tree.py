@@ -163,7 +163,7 @@ class DirectoryTree(object):
         return git_hashes
 
 
-def get_some_seeds(storage_dir, file_check):
+def get_some_seeds(storage_dir, file_check, sort_by_seed=False):
     # Finds all seed directories containing a file named file_check and sorts them numerically
 
     sorted_experiments = DirectoryTree.get_all_experiments(storage_dir)
@@ -173,6 +173,9 @@ def get_some_seeds(storage_dir, file_check):
         some_seed_dirs += [seed_path for seed_path
                            in DirectoryTree.get_all_seeds(experiment_dir)
                            if (seed_path / file_check).exists()]
+
+    if sort_by_seed:
+        some_seed_dirs = sorted(some_seed_dirs, key=lambda item: (int(str(item.name).strip('seed'))))
 
     return some_seed_dirs
 

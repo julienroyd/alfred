@@ -79,7 +79,7 @@ def _work_on_schedule(storage_dirs, n_experiments_per_proc, logger, root_dir, pr
 
                 # Select the next seed directory
 
-                unhatched_seeds = get_some_seeds(storage_dir, file_check='UNHATCHED')
+                unhatched_seeds = get_some_seeds(storage_dir, file_check='UNHATCHED', sort_by_seed=True)
 
                 if len(unhatched_seeds) > 0:
                     seed_dir = unhatched_seeds[0]
