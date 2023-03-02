@@ -11,15 +11,15 @@ import os
 def get_clean_interrupted_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--from_file', type=str, default=None,
+    parser.add_argument('-f', '--from_file', type=str, default=None,
                         help="Path containing all the storage_names to clean")
 
-    parser.add_argument('--storage_name', type=str, default=None)
+    parser.add_argument('-s', '--storage_name', type=str, default=None)
 
     parser.add_argument('--clean_crashes', type=parse_bool, default=False)
     parser.add_argument('--ask_for_validation', type=parse_bool, default=True)
 
-    parser.add_argument('--root_dir', default=None, type=str)
+    parser.add_argument('-r', '--root_dir', default=None, type=str)
     return parser.parse_args()
 
 

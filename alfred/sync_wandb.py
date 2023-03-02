@@ -8,7 +8,7 @@ from alfred.utils.directory_tree import *
 
 def get_synch_wandb_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--root_dir', default=None, type=str,
+    parser.add_argument('-r', '--root_dir', default=None, type=str,
                         help="The starting directory, the script will try to sync all child directory"
                              " that matches the tag")
     parser.add_argument('--tag', type=str, default="",

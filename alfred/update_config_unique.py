@@ -5,10 +5,10 @@ from alfred.utils.misc import create_logger, select_storage_dirs
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--from_file', type=str, default=None,
+    parser.add_argument('-f', '--from_file', type=str, default=None,
                         help="Path containing all the storage_names for which to create retrainBests")
-    parser.add_argument('--storage_name', type=str, default=None)
-    parser.add_argument("--root_dir", default=None, type=str)
+    parser.add_argument('-s', '--storage_name', type=str, default=None)
+    parser.add_argument('-r', "--root_dir", default=None, type=str)
     return parser.parse_args()
 
 

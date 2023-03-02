@@ -34,19 +34,19 @@ import alfred.defaults
 def get_launch_schedule_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--from_file', type=str, default=None,
+    parser.add_argument('-f', '--from_file', type=str, default=None,
                         help="Path containing all the storage_names to launch")
 
-    parser.add_argument('--storage_name', type=str, default=None,
+    parser.add_argument('-s', '--storage_name', type=str, default=None,
                         help="Single storage_name to launch (NULL if --from_file is provided)")
 
-    parser.add_argument('--n_processes', type=int, default=1)
+    parser.add_argument('-p', '--n_processes', type=int, default=1)
     parser.add_argument('--n_experiments_per_proc', type=int, default=np.inf)
     parser.add_argument('--check_hash', type=parse_bool, default=True)
     parser.add_argument('--run_clean_interrupted', type=parse_bool, default=False,
                         help="Will clean opened seeds to be re-runned, but not crashed experiments")
 
-    parser.add_argument('--root_dir', default=None, type=str)
+    parser.add_argument('-r', '--root_dir', default=None, type=str)
     parser.add_argument("--log_level", default=logging.INFO, type=parse_log_level)
 
     return parser.parse_args()
