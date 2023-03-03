@@ -117,6 +117,7 @@ def _work_on_schedule(storage_dirs, n_experiments_per_proc, logger, root_dir, pr
 
                     main(config=config, dir_tree=dir_tree, logger=experiment_logger)
 
+                    os.remove(str(seed_dir / 'OPENED'))
                     open(str(seed_dir / 'COMPLETED'), 'w+').close()
                     call_i += 1
 
@@ -127,6 +128,7 @@ def _work_on_schedule(storage_dirs, n_experiments_per_proc, logger, root_dir, pr
                     )
 
                 except Exception as e:
+                    os.remove(str(seed_dir / 'OPENED'))
                     with open(str(seed_dir / 'CRASH.txt'), 'w+') as f:
                         f.write(f'Crashed at: {datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")}.')
                         f.write(f'Error: {e}\n')
