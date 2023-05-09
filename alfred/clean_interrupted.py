@@ -16,14 +16,15 @@ def get_clean_interrupted_args():
 
     parser.add_argument('-s', '--storage_name', type=str, default=None)
 
-    parser.add_argument('--clean_crashes', type=parse_bool, default=False)
+    parser.add_argument('--clean_opened', action='store_true', default=False)
+    parser.add_argument('--clean_crashed', action='store_true', default=False)
     parser.add_argument('--ask_for_validation', type=parse_bool, default=True)
 
     parser.add_argument('-r', '--root_dir', default=None, type=str)
     return parser.parse_args()
 
 
-def clean_interrupted(from_file, storage_name, clean_crashes, ask_for_validation, logger, root_dir):
+def clean_interrupted(from_file, storage_name, clean_opened, clean_crashed, ask_for_validation, logger, root_dir):
     # Select storage_dirs to run over
 
     storage_dirs = select_storage_dirs(from_file, storage_name, root_dir)
@@ -52,9 +53,25 @@ def clean_interrupted(from_file, storage_name, clean_crashes, ask_for_validation
                     f"\nNumber of seeds OPENED: \t{len(opened_seeds)}"
                     f"\nNumber of seeds CRASHED:\t{len(crashed_seeds)}"
                     f"\nNumber of seeds COMPLETED:\t{len(completed_seeds)}"
-                    f"\n\nclean_crashes={clean_crashes}"
+                    f"\n\nclean_opened={clean_opened}"
+                    f"\nclean_crashed={clean_crashed}"
                     f"\n"
                     )
+
+        # Check what should be cleaned
+
+        seeds_to_clean = []
+
+        if clean_opened:
+            seeds_to_clean += [seed_dir for seed_dir in all_seeds if seed_dir in opened_seeds]
+
+        if clean_crashed:
+            seeds_to_clean += [seed_dir for seed_dir in all_seeds if seed_dir in crashed_seeds]
+
+        if len(seeds_to_clean) != 0:
+            logger.info(f'{len(seeds_to_clean)} seeds about to be cleaned:')
+            for seed_dir in seeds_to_clean:
+                logger.info(f'--- {seed_dir}')
 
         if ask_for_validation:
 
@@ -66,18 +83,6 @@ def clean_interrupted(from_file, storage_name, clean_crashes, ask_for_validation
                 continue
 
             logger.debug("Starting...")
-
-        # Check what should be cleaned
-
-        if clean_crashes:
-            seeds_to_clean = [seed_dir for seed_dir in all_seeds
-                              if seed_dir not in unhatched_seeds + completed_seeds]
-        else:
-            seeds_to_clean = [seed_dir for seed_dir in all_seeds
-                              if seed_dir not in unhatched_seeds + completed_seeds + crashed_seeds]
-
-        if len(seeds_to_clean) != 0:
-            logger.info(f'Number of seeds to be cleaned: {len(seeds_to_clean)}')
 
             # Clean each seed_directory
 
