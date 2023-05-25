@@ -24,16 +24,16 @@ def my_type_func(add_arg):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--from_file', type=str, default=None,
+    parser.add_argument('-f', '--from_file', type=str, default=None,
                         help="Path containing all the storage_names for which to create retrainBests")
-    parser.add_argument('--storage_name', type=str, default=None)
+    parser.add_argument('-s', '--storage_name', type=str, default=None)
     parser.add_argument('--new_desc', type=str, default=None)
     parser.add_argument('--append_new_desc', type=parse_bool, default=True)
     parser.add_argument("--additional_param", action='append',
                         type=my_type_func, dest='additional_params',
                         help='To add two params p1 and p2 with values v1 and v2 of type t1 and t2 do : --additional_param p1=v1,t1 '
                              '--additional_param p2=v2,t2')
-    parser.add_argument("--root_dir", default=None, type=str)
+    parser.add_argument('-r', "--root_dir", default=None, type=str)
     return parser.parse_args()
 
 

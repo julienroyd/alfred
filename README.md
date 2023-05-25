@@ -155,8 +155,9 @@ The whole directory-tree is a result of `alfred.prepare_schedule`. It uses a fil
 
 There are three main flag files present in seed-directories: 
   * `UNHATCHED`: signals that this run has not been launched yet
-  * `COMPLETED`: signals that this run has reached termination without crash
+  * `OPENED`: signals that this run has been launched (although it could have stopped say due to ressources being revoked)
   * `CRASH.txt`: signals that the run from this config has crashed and contains the error message
+  * `COMPLETED`: signals that this run has reached termination without crash
 
 A seed-directory that does not contain any FLAG-file can be explained in two ways:
   1. It is currently being runned (a process is executing this config and hasn't finished yet)

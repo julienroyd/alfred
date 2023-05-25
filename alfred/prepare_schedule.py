@@ -25,10 +25,11 @@ from alfred.utils.misc import create_logger, plot_sampled_hyperparams
 
 def get_prepare_schedule_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--desc', type=str, required=True)
-    parser.add_argument('--schedule_file', type=str, required=True,
+    parser.add_argument('-f', '--schedule_file', type=str, required=True,
                         help="e.g. --schedule_file=schedules/search1/grid_schedule_search1.py")
-    parser.add_argument('--root_dir', default=None, type=str)
+    parser.add_argument('-r', '--root_dir', default=None, type=str)
+    parser.add_argument('-d', '--desc', type=str, required=True)
+
     parser.add_argument('--add_to_folder', type=str, default=None)
     parser.add_argument('--resample', type=parse_bool, default=True,
                         help="If true we resample a configuration for each task*alg combination")

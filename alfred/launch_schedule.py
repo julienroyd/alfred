@@ -34,19 +34,19 @@ import alfred.defaults
 def get_launch_schedule_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--from_file', type=str, default=None,
+    parser.add_argument('-f', '--from_file', type=str, default=None,
                         help="Path containing all the storage_names to launch")
 
-    parser.add_argument('--storage_name', type=str, default=None,
+    parser.add_argument('-s', '--storage_name', type=str, default=None,
                         help="Single storage_name to launch (NULL if --from_file is provided)")
 
-    parser.add_argument('--n_processes', type=int, default=1)
+    parser.add_argument('-p', '--n_processes', type=int, default=1)
     parser.add_argument('--n_experiments_per_proc', type=int, default=np.inf)
     parser.add_argument('--check_hash', type=parse_bool, default=True)
     parser.add_argument('--run_clean_interrupted', type=parse_bool, default=False,
                         help="Will clean opened seeds to be re-runned, but not crashed experiments")
 
-    parser.add_argument('--root_dir', default=None, type=str)
+    parser.add_argument('-r', '--root_dir', default=None, type=str)
     parser.add_argument("--log_level", default=logging.INFO, type=parse_log_level)
 
     return parser.parse_args()
@@ -79,7 +79,7 @@ def _work_on_schedule(storage_dirs, n_experiments_per_proc, logger, root_dir, pr
 
                 # Select the next seed directory
 
-                unhatched_seeds = get_some_seeds(storage_dir, file_check='UNHATCHED')
+                unhatched_seeds = get_some_seeds(storage_dir, file_check='UNHATCHED', sort_by_seed=True)
 
                 if len(unhatched_seeds) > 0:
                     seed_dir = unhatched_seeds[0]
@@ -94,6 +94,8 @@ def _work_on_schedule(storage_dirs, n_experiments_per_proc, logger, root_dir, pr
                 except FileNotFoundError:
                     logger.info(f"{seed_dir} - Already hatched")
                     continue
+
+                open(str(seed_dir / 'OPENED'), 'w+').close()
 
                 # Load the config and try to train the model
 
@@ -115,6 +117,7 @@ def _work_on_schedule(storage_dirs, n_experiments_per_proc, logger, root_dir, pr
 
                     main(config=config, dir_tree=dir_tree, logger=experiment_logger)
 
+                    os.remove(str(seed_dir / 'OPENED'))
                     open(str(seed_dir / 'COMPLETED'), 'w+').close()
                     call_i += 1
 
@@ -125,6 +128,7 @@ def _work_on_schedule(storage_dirs, n_experiments_per_proc, logger, root_dir, pr
                     )
 
                 except Exception as e:
+                    os.remove(str(seed_dir / 'OPENED'))
                     with open(str(seed_dir / 'CRASH.txt'), 'w+') as f:
                         f.write(f'Crashed at: {datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")}.')
                         f.write(f'Error: {e}\n')
