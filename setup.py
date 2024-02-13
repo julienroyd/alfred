@@ -8,8 +8,6 @@ setup(name='alfred',
       packages=find_packages(),
       install_requires=[
             'numpy>=1.16.3',
-            'matplotlib>=3.1.2',
-            'seaborn>=0.9.0',
-            'bootstrapped>=0.0.2'
+            'matplotlib>=3.1.2'
       ]
 )
