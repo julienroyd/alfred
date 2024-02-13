@@ -128,7 +128,7 @@ The directory-tree used by alfred is defined in the class `alfred.utils.director
     |              └─── seed789
     |                   └─── config.json
     |                   └─── config_unique.json
-    |                   └─── CRASH.txt
+    |                   └─── CRASH
     |                   └─── logger.out
     |         └─── experiment3
     |         └─── experiment4
@@ -156,7 +156,7 @@ The whole directory-tree is a result of `alfred.prepare_schedule`. It uses a fil
 There are three main flag files present in seed-directories: 
   * `UNHATCHED`: signals that this run has not been launched yet
   * `OPENED`: signals that this run has been launched (although it could have stopped say due to ressources being revoked)
-  * `CRASH.txt`: signals that the run from this config has crashed and contains the error message
+  * `CRASH`: signals that the run from this config has crashed and contains the error message
   * `COMPLETED`: signals that this run has reached termination without crash
 
 A seed-directory that does not contain any FLAG-file can be explained in two ways:

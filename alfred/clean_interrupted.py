@@ -41,7 +41,7 @@ def clean_interrupted(from_file, storage_name, clean_opened, clean_crashed, ask_
         unhatched_seeds = get_some_seeds(storage_dir, file_check='UNHATCHED')
         opened_seeds = get_some_seeds(storage_dir, file_check='OPENED')
         completed_seeds = get_some_seeds(storage_dir, file_check='COMPLETED')
-        crashed_seeds = get_some_seeds(storage_dir, file_check='CRASH.txt')
+        crashed_seeds = get_some_seeds(storage_dir, file_check='CRASH')
         assert set(all_seeds) == set(unhatched_seeds + opened_seeds + completed_seeds + crashed_seeds)
 
         # Prints some info
